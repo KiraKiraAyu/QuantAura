@@ -1,0 +1,135 @@
+use sea_orm_migration::prelude::*;
+
+#[derive(DeriveMigrationName)]
+pub struct Migration;
+
+#[async_trait::async_trait]
+impl MigrationTrait for Migration {
+    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .create_table(
+                Table::create()
+                    .table(ExecutionIntents::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(ExecutionIntents::Id)
+                            .string()
+                            .not_null()
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(ExecutionIntents::TraderId)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(ExecutionIntents::UserId).string().not_null())
+                    .col(
+                        ColumnDef::new(ExecutionIntents::IntentKey)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(ExecutionIntents::Symbol)
+                            .string()
+                            .not_null()
+                            .default(""),
+                    )
+                    .col(
+                        ColumnDef::new(ExecutionIntents::Side)
+                            .string()
+                            .not_null()
+                            .default(""),
+                    )
+                    .col(
+                        ColumnDef::new(ExecutionIntents::Decision)
+                            .string()
+                            .not_null()
+                            .default(""),
+                    )
+                    .col(
+                        ColumnDef::new(ExecutionIntents::Status)
+                            .string()
+                            .not_null()
+                            .default("pending"),
+                    )
+                    .col(
+                        ColumnDef::new(ExecutionIntents::ExchangeOrderId)
+                            .string()
+                            .not_null()
+                            .default(""),
+                    )
+                    .col(
+                        ColumnDef::new(ExecutionIntents::PayloadJson)
+                            .string()
+                            .not_null()
+                            .default(""),
+                    )
+                    .col(
+                        ColumnDef::new(ExecutionIntents::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(ExecutionIntents::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .if_not_exists()
+                    .name("idx_execution_intents_trader_user_intent_key")
+                    .table(ExecutionIntents::Table)
+                    .unique()
+                    .col(ExecutionIntents::TraderId)
+                    .col(ExecutionIntents::UserId)
+                    .col(ExecutionIntents::IntentKey)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .if_not_exists()
+                    .name("idx_execution_intents_trader_status_created")
+                    .table(ExecutionIntents::Table)
+                    .col(ExecutionIntents::TraderId)
+                    .col(ExecutionIntents::Status)
+                    .col((ExecutionIntents::CreatedAt, IndexOrder::Desc))
+                    .to_owned(),
+            )
+            .await
+    }
+
+    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .drop_table(
+                Table::drop()
+                    .if_exists()
+                    .table(ExecutionIntents::Table)
+                    .to_owned(),
+            )
+            .await
+    }
+}
+
+#[derive(DeriveIden)]
+enum ExecutionIntents {
+    Table,
+    Id,
+    TraderId,
+    UserId,
+    IntentKey,
+    Symbol,
+    Side,
+    Decision,
+    Status,
+    ExchangeOrderId,
+    PayloadJson,
+    CreatedAt,
+    UpdatedAt,
+}

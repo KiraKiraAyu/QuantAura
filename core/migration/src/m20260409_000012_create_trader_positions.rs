@@ -1,0 +1,164 @@
+use sea_orm_migration::prelude::*;
+
+#[derive(DeriveMigrationName)]
+pub struct Migration;
+
+#[async_trait::async_trait]
+impl MigrationTrait for Migration {
+    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .create_table(
+                Table::create()
+                    .table(TraderPositions::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(TraderPositions::Id)
+                            .string()
+                            .not_null()
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(TraderPositions::TraderId)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(TraderPositions::UserId).string().not_null())
+                    .col(ColumnDef::new(TraderPositions::Symbol).string().not_null())
+                    .col(ColumnDef::new(TraderPositions::Side).string().not_null())
+                    .col(
+                        ColumnDef::new(TraderPositions::Quantity)
+                            .double()
+                            .not_null()
+                            .default(0.0),
+                    )
+                    .col(
+                        ColumnDef::new(TraderPositions::EntryPrice)
+                            .double()
+                            .not_null()
+                            .default(0.0),
+                    )
+                    .col(
+                        ColumnDef::new(TraderPositions::MarkPrice)
+                            .double()
+                            .not_null()
+                            .default(0.0),
+                    )
+                    .col(
+                        ColumnDef::new(TraderPositions::LiquidationPrice)
+                            .double()
+                            .not_null()
+                            .default(0.0),
+                    )
+                    .col(
+                        ColumnDef::new(TraderPositions::Leverage)
+                            .integer()
+                            .not_null()
+                            .default(1),
+                    )
+                    .col(
+                        ColumnDef::new(TraderPositions::MarginMode)
+                            .string()
+                            .not_null()
+                            .default("cross"),
+                    )
+                    .col(
+                        ColumnDef::new(TraderPositions::UnrealizedPnl)
+                            .double()
+                            .not_null()
+                            .default(0.0),
+                    )
+                    .col(
+                        ColumnDef::new(TraderPositions::RealizedPnl)
+                            .double()
+                            .not_null()
+                            .default(0.0),
+                    )
+                    .col(
+                        ColumnDef::new(TraderPositions::Status)
+                            .string()
+                            .not_null()
+                            .default("open"),
+                    )
+                    .col(
+                        ColumnDef::new(TraderPositions::OpenedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(TraderPositions::ClosedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(TraderPositions::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(TraderPositions::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .if_not_exists()
+                    .name("idx_trader_positions_trader_status")
+                    .table(TraderPositions::Table)
+                    .col(TraderPositions::TraderId)
+                    .col(TraderPositions::Status)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .if_not_exists()
+                    .name("idx_trader_positions_symbol_status")
+                    .table(TraderPositions::Table)
+                    .col(TraderPositions::TraderId)
+                    .col(TraderPositions::Symbol)
+                    .col(TraderPositions::Status)
+                    .to_owned(),
+            )
+            .await
+    }
+
+    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .drop_table(
+                Table::drop()
+                    .if_exists()
+                    .table(TraderPositions::Table)
+                    .to_owned(),
+            )
+            .await
+    }
+}
+
+#[derive(DeriveIden)]
+enum TraderPositions {
+    Table,
+    Id,
+    TraderId,
+    UserId,
+    Symbol,
+    Side,
+    Quantity,
+    EntryPrice,
+    MarkPrice,
+    LiquidationPrice,
+    Leverage,
+    MarginMode,
+    UnrealizedPnl,
+    RealizedPnl,
+    Status,
+    OpenedAt,
+    ClosedAt,
+    CreatedAt,
+    UpdatedAt,
+}

@@ -1,0 +1,40 @@
+{
+  "name": "amaryllis-web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage"
+  },
+  "dependencies": {
+    "@iconify/vue": "^5.0.0",
+    "@vueuse/core": "^14.2.1",
+    "axios": "^1.13.5",
+    "gsap": "^3.15.0",
+    "lightweight-charts": "^5.1.0",
+    "pinia": "^3.0.4",
+    "vue": "^3.5.25",
+    "vue-router": "^5.0.3"
+  },
+  "devDependencies": {
+    "@iconify-json/ic": "^1.2.4",
+    "@tailwindcss/vite": "^4.2.1",
+    "@types/node": "^24.10.1",
+    "@vitejs/plugin-vue": "^6.0.2",
+    "@vitest/ui": "^4.1.7",
+    "@vue/test-utils": "^2.4.6",
+    "@vue/tsconfig": "^0.8.1",
+    "happy-dom": "^20.9.0",
+    "prettier": "3.8.1",
+    "tailwindcss": "^4.2.1",
+    "typescript": "~5.9.3",
+    "vite": "^8.0.14",
+    "vitest": "^4.1.7",
+    "vue-tsc": "^3.1.5"
+  }
+}

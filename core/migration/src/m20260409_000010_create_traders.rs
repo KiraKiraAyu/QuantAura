@@ -1,0 +1,171 @@
+use sea_orm_migration::prelude::*;
+
+#[derive(DeriveMigrationName)]
+pub struct Migration;
+
+#[async_trait::async_trait]
+impl MigrationTrait for Migration {
+    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .create_table(
+                Table::create()
+                    .table(Traders::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(Traders::Id)
+                            .string()
+                            .not_null()
+                            .primary_key(),
+                    )
+                    .col(ColumnDef::new(Traders::UserId).string().not_null())
+                    .col(ColumnDef::new(Traders::Name).string().not_null())
+                    .col(ColumnDef::new(Traders::AiModelId).string().not_null())
+                    .col(ColumnDef::new(Traders::ExchangeId).string().not_null())
+                    .col(
+                        ColumnDef::new(Traders::StrategyId)
+                            .string()
+                            .not_null()
+                            .default(""),
+                    )
+                    .col(ColumnDef::new(Traders::InitialBalance).double().not_null())
+                    .col(
+                        ColumnDef::new(Traders::ScanIntervalMinutes)
+                            .integer()
+                            .not_null()
+                            .default(3),
+                    )
+                    .col(
+                        ColumnDef::new(Traders::IsRunning)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(Traders::IsCrossMargin)
+                            .integer()
+                            .not_null()
+                            .default(1),
+                    )
+                    .col(
+                        ColumnDef::new(Traders::ShowInCompetition)
+                            .integer()
+                            .not_null()
+                            .default(1),
+                    )
+                    .col(
+                        ColumnDef::new(Traders::BtcEthLeverage)
+                            .integer()
+                            .not_null()
+                            .default(5),
+                    )
+                    .col(
+                        ColumnDef::new(Traders::AltcoinLeverage)
+                            .integer()
+                            .not_null()
+                            .default(5),
+                    )
+                    .col(
+                        ColumnDef::new(Traders::TradingSymbols)
+                            .string()
+                            .not_null()
+                            .default(""),
+                    )
+                    .col(
+                        ColumnDef::new(Traders::UseAi500)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(Traders::UseOiTop)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(Traders::CustomPrompt)
+                            .string()
+                            .not_null()
+                            .default(""),
+                    )
+                    .col(
+                        ColumnDef::new(Traders::OverrideBasePrompt)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(Traders::SystemPromptTemplate)
+                            .string()
+                            .not_null()
+                            .default("default"),
+                    )
+                    .col(
+                        ColumnDef::new(Traders::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Traders::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .if_not_exists()
+                    .name("idx_traders_user_id")
+                    .table(Traders::Table)
+                    .col(Traders::UserId)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .if_not_exists()
+                    .name("idx_traders_user_created")
+                    .table(Traders::Table)
+                    .col(Traders::UserId)
+                    .col((Traders::CreatedAt, IndexOrder::Desc))
+                    .to_owned(),
+            )
+            .await
+    }
+
+    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .drop_table(Table::drop().if_exists().table(Traders::Table).to_owned())
+            .await
+    }
+}
+
+#[derive(DeriveIden)]
+enum Traders {
+    Table,
+    Id,
+    UserId,
+    Name,
+    AiModelId,
+    ExchangeId,
+    StrategyId,
+    InitialBalance,
+    ScanIntervalMinutes,
+    IsRunning,
+    IsCrossMargin,
+    ShowInCompetition,
+    BtcEthLeverage,
+    AltcoinLeverage,
+    TradingSymbols,
+    UseAi500,
+    UseOiTop,
+    CustomPrompt,
+    OverrideBasePrompt,
+    SystemPromptTemplate,
+    CreatedAt,
+    UpdatedAt,
+}

@@ -1,0 +1,10 @@
+.git
+.DS_Store
+.env
+*.pem
+
+target
+data
+
+logs
+*.log

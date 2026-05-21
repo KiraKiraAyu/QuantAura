@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+@theme {
+  /* ── Reisa Lilac palette ── */
+  --color-reisa-lilac-50: oklch(0.96 0.018 301);
+  --color-reisa-lilac-100: oklch(0.92 0.03 301);
+  --color-reisa-lilac-200: oklch(0.88 0.042 301);
+  --color-reisa-lilac-300: oklch(0.84 0.052 301);
+  --color-reisa-lilac-400: oklch(0.76 0.06 301);
+  --color-reisa-lilac-500: oklch(0.66 0.058 301);
+  --color-reisa-lilac-600: oklch(0.56 0.052 301);
+  --color-reisa-lilac-700: oklch(0.46 0.044 301);
+  --color-reisa-lilac-800: oklch(0.36 0.036 301);
+  --color-reisa-lilac-900: oklch(0.26 0.028 301);
+  --color-reisa-lilac-950: oklch(0.19 0.1 301);
+
+  /* ── Reisa Pink palette ── */
+  --color-reisa-pink-50: oklch(0.97 0.015 356);
+  --color-reisa-pink-100: oklch(0.93 0.045 356);
+  --color-reisa-pink-200: oklch(0.89 0.085 356);
+  --color-reisa-pink-300: oklch(0.85 0.075 356);
+  --color-reisa-pink-400: oklch(0.72 0.175 356);
+  --color-reisa-pink-500: oklch(0.65 0.21 356);
+  --color-reisa-pink-600: oklch(0.58 0.22 356);
+  --color-reisa-pink-700: oklch(0.48 0.2 356);
+  --color-reisa-pink-800: oklch(0.38 0.17 356);
+  --color-reisa-pink-900: oklch(0.3 0.13 356);
+  --color-reisa-pink-950: oklch(0.2 0.09 356);
+
+  /* ── Semantic tokens (dark theme) ── */
+  --color-primary: var(--color-reisa-lilac-500);
+  --color-primary-hover: var(--color-reisa-lilac-600);
+  --color-accent: var(--color-reisa-pink-500);
+  --color-accent-hover: var(--color-reisa-pink-600);
+  --color-highlight: var(--color-reisa-gold-500);
+
+  --color-surface: oklch(0.15 0.015 280);
+  --color-surface-elevated: oklch(0.18 0.018 280);
+  --color-surface-overlay: oklch(0.22 0.022 280);
+  --color-border: oklch(0.28 0.025 280);
+  --color-border-subtle: oklch(0.22 0.02 280);
+
+  --color-text-primary: oklch(0.95 0.01 280);
+  --color-text-secondary: oklch(0.75 0.015 280);
+  --color-text-muted: oklch(0.55 0.012 280);
+
+  --color-success: oklch(0.72 0.18 142);
+  --color-warning: oklch(0.8 0.18 85);
+  --color-error: oklch(0.65 0.22 25);
+  --color-info: oklch(0.7 0.15 240);
+}
+
+@layer base {
+  html,
+  body {
+    height: 100%;
+    background-color: var(--color-surface);
+    color: var(--color-text-primary);
+  }
+
+  #app {
+    height: 100%;
+  }
+
+  .font-display {
+    font-family: "Outfit", "Inter", sans-serif;
+  }
+
+  .font-mono {
+    font-family: "JetBrains Mono", "Fira Code", monospace;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-primary);
+  }
+}

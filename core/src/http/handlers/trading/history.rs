@@ -1,0 +1,55 @@
+use axum::{
+    Json,
+    extract::{Query, State},
+};
+
+use crate::{
+    contracts::trading::{
+        common::{PaginationQuery, TraderQuery},
+        history::{
+            DecisionListPayload, DecisionQuery, LatestDecisionsPayload, StatisticsQuery,
+            TradeListPayload, TraderStatisticsPayload,
+        },
+    },
+    error::Result,
+    http::{extractors::AuthUser, response::ApiResponse},
+    state,
+};
+
+use super::trading_service;
+
+pub async fn decisions(
+    State(app): State<state::AppState>,
+    user: AuthUser,
+    Query(q): Query<DecisionQuery>,
+) -> Result<Json<ApiResponse<DecisionListPayload>>> {
+    let payload = trading_service(&app).decisions(&user.sub, q).await?;
+    Ok(Json(ApiResponse::success(Some(payload), None)))
+}
+
+pub async fn latest_decisions(
+    State(app): State<state::AppState>,
+    user: AuthUser,
+    Query(q): Query<TraderQuery>,
+) -> Result<Json<ApiResponse<LatestDecisionsPayload>>> {
+    let payload = trading_service(&app).latest_decisions(&user.sub, q).await?;
+    Ok(Json(ApiResponse::success(Some(payload), None)))
+}
+
+pub async fn trades(
+    State(app): State<state::AppState>,
+    user: AuthUser,
+    Query(q): Query<PaginationQuery>,
+) -> Result<Json<ApiResponse<TradeListPayload>>> {
+    let payload = trading_service(&app).trades(&user.sub, q).await?;
+    Ok(Json(ApiResponse::success(Some(payload), None)))
+}
+
+pub async fn statistics(
+    State(app): State<state::AppState>,
+    user: AuthUser,
+    Query(q): Query<StatisticsQuery>,
+) -> Result<Json<ApiResponse<TraderStatisticsPayload>>> {
+    let payload = trading_service(&app).statistics(&user.sub, q).await?;
+    Ok(Json(ApiResponse::success(Some(payload), None)))
+}

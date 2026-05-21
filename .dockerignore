@@ -1,0 +1,15 @@
+.git
+.DS_Store
+.env
+.env.production
+*.pem
+
+node_modules
+web/node_modules
+web/dist
+core/target
+core/data
+
+logs
+*.log
+pnpm-debug.log*

@@ -1,0 +1,152 @@
+use sea_orm_migration::prelude::*;
+
+#[derive(DeriveMigrationName)]
+pub struct Migration;
+
+#[async_trait::async_trait]
+impl MigrationTrait for Migration {
+    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .create_table(
+                Table::create()
+                    .table(RuntimeEvents::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(RuntimeEvents::Id)
+                            .string()
+                            .not_null()
+                            .primary_key(),
+                    )
+                    .col(ColumnDef::new(RuntimeEvents::TraderId).string().not_null())
+                    .col(ColumnDef::new(RuntimeEvents::UserId).string().not_null())
+                    .col(
+                        ColumnDef::new(RuntimeEvents::EventType)
+                            .string()
+                            .not_null()
+                            .default(""),
+                    )
+                    .col(
+                        ColumnDef::new(RuntimeEvents::Symbol)
+                            .string()
+                            .not_null()
+                            .default(""),
+                    )
+                    .col(
+                        ColumnDef::new(RuntimeEvents::Side)
+                            .string()
+                            .not_null()
+                            .default(""),
+                    )
+                    .col(
+                        ColumnDef::new(RuntimeEvents::RiskLevel)
+                            .string()
+                            .not_null()
+                            .default(""),
+                    )
+                    .col(
+                        ColumnDef::new(RuntimeEvents::TriggerSource)
+                            .string()
+                            .not_null()
+                            .default(""),
+                    )
+                    .col(
+                        ColumnDef::new(RuntimeEvents::ActionTaken)
+                            .string()
+                            .not_null()
+                            .default(""),
+                    )
+                    .col(
+                        ColumnDef::new(RuntimeEvents::CorrelationId)
+                            .string()
+                            .not_null()
+                            .default(""),
+                    )
+                    .col(
+                        ColumnDef::new(RuntimeEvents::PayloadJson)
+                            .string()
+                            .not_null()
+                            .default(""),
+                    )
+                    .col(
+                        ColumnDef::new(RuntimeEvents::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .if_not_exists()
+                    .name("idx_runtime_events_trader_created")
+                    .table(RuntimeEvents::Table)
+                    .col(RuntimeEvents::TraderId)
+                    .col((RuntimeEvents::CreatedAt, IndexOrder::Desc))
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .if_not_exists()
+                    .name("idx_runtime_events_event_type_created")
+                    .table(RuntimeEvents::Table)
+                    .col(RuntimeEvents::EventType)
+                    .col((RuntimeEvents::CreatedAt, IndexOrder::Desc))
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .if_not_exists()
+                    .name("idx_runtime_events_correlation")
+                    .table(RuntimeEvents::Table)
+                    .col(RuntimeEvents::CorrelationId)
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .if_not_exists()
+                    .name("idx_runtime_events_trader_symbol_created")
+                    .table(RuntimeEvents::Table)
+                    .col(RuntimeEvents::TraderId)
+                    .col(RuntimeEvents::Symbol)
+                    .col((RuntimeEvents::CreatedAt, IndexOrder::Desc))
+                    .to_owned(),
+            )
+            .await
+    }
+
+    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .drop_table(
+                Table::drop()
+                    .if_exists()
+                    .table(RuntimeEvents::Table)
+                    .to_owned(),
+            )
+            .await
+    }
+}
+
+#[derive(DeriveIden)]
+enum RuntimeEvents {
+    Table,
+    Id,
+    TraderId,
+    UserId,
+    EventType,
+    Symbol,
+    Side,
+    RiskLevel,
+    TriggerSource,
+    ActionTaken,
+    CorrelationId,
+    PayloadJson,
+    CreatedAt,
+}

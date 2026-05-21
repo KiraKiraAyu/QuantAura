@@ -1,0 +1,72 @@
+import { createRouter, createWebHistory } from "vue-router"
+import { useAuthStore } from "@/stores/auth"
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes: [
+    {
+      path: "/login",
+      name: "login",
+      component: () => import("@/pages/LoginPage.vue"),
+      meta: { public: true },
+    },
+    {
+      path: "/",
+      component: () => import("@/layout/MainLayout.vue"),
+      children: [
+        {
+          path: "",
+          name: "dashboard",
+          component: () => import("@/pages/DashboardPage.vue"),
+        },
+        {
+          path: "strategy",
+          name: "strategy",
+          component: () => import("@/pages/StrategyPage.vue"),
+        },
+        {
+          path: "backtest",
+          name: "backtest",
+          component: () => import("@/pages/BacktestPage.vue"),
+        },
+        {
+          path: "debate",
+          name: "debate",
+          component: () => import("@/pages/DebatePage.vue"),
+        },
+        {
+          path: "competition",
+          name: "competition",
+          component: () => import("@/pages/CompetitionPage.vue"),
+        },
+        {
+          path: "data",
+          name: "data",
+          component: () => import("@/pages/DataPage.vue"),
+        },
+        {
+          path: "monitor",
+          name: "monitor",
+          component: () => import("@/pages/SystemMonitorPage.vue"),
+        },
+        {
+          path: "settings",
+          name: "settings",
+          component: () => import("@/pages/SettingsPage.vue"),
+        },
+      ],
+    },
+  ],
+})
+
+router.beforeEach((to) => {
+  const auth = useAuthStore()
+  if (!to.meta.public && !auth.isLoggedIn) {
+    return { name: "login" }
+  }
+  if (to.meta.public && auth.isLoggedIn) {
+    return { name: "dashboard" }
+  }
+})
+
+export default router

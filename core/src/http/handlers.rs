@@ -1,0 +1,12 @@
+pub mod auth;
+pub mod backtest;
+pub mod catalog;
+pub mod competition;
+pub mod crypto;
+pub mod debates;
+pub mod exchanges;
+pub mod market;
+pub mod models;
+pub mod strategies;
+pub mod system;
+pub mod trading;

@@ -1,0 +1,132 @@
+use sea_orm_migration::prelude::*;
+
+#[derive(DeriveMigrationName)]
+pub struct Migration;
+
+#[async_trait::async_trait]
+impl MigrationTrait for Migration {
+    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .create_table(
+                Table::create()
+                    .table(Debates::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(Debates::Id)
+                            .string()
+                            .not_null()
+                            .primary_key(),
+                    )
+                    .col(ColumnDef::new(Debates::UserId).string().not_null())
+                    .col(
+                        ColumnDef::new(Debates::Name)
+                            .string()
+                            .not_null()
+                            .default(""),
+                    )
+                    .col(
+                        ColumnDef::new(Debates::Symbol)
+                            .string()
+                            .not_null()
+                            .default("BTCUSDT"),
+                    )
+                    .col(
+                        ColumnDef::new(Debates::Status)
+                            .string()
+                            .not_null()
+                            .default("pending"),
+                    )
+                    .col(
+                        ColumnDef::new(Debates::MaxRounds)
+                            .integer()
+                            .not_null()
+                            .default(3),
+                    )
+                    .col(
+                        ColumnDef::new(Debates::CurrentRound)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(Debates::PromptVariant)
+                            .string()
+                            .not_null()
+                            .default("balanced"),
+                    )
+                    .col(
+                        ColumnDef::new(Debates::ParticipantsJson)
+                            .string()
+                            .not_null()
+                            .default("[]"),
+                    )
+                    .col(
+                        ColumnDef::new(Debates::FinalDecision)
+                            .string()
+                            .not_null()
+                            .default(""),
+                    )
+                    .col(
+                        ColumnDef::new(Debates::FinalReasoning)
+                            .string()
+                            .not_null()
+                            .default(""),
+                    )
+                    .col(
+                        ColumnDef::new(Debates::ErrorMessage)
+                            .string()
+                            .not_null()
+                            .default(""),
+                    )
+                    .col(
+                        ColumnDef::new(Debates::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(Debates::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .if_not_exists()
+                    .name("idx_debates_user_created")
+                    .table(Debates::Table)
+                    .col(Debates::UserId)
+                    .col((Debates::CreatedAt, IndexOrder::Desc))
+                    .to_owned(),
+            )
+            .await
+    }
+
+    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .drop_table(Table::drop().if_exists().table(Debates::Table).to_owned())
+            .await
+    }
+}
+
+#[derive(DeriveIden)]
+enum Debates {
+    Table,
+    Id,
+    UserId,
+    Name,
+    Symbol,
+    Status,
+    MaxRounds,
+    CurrentRound,
+    PromptVariant,
+    ParticipantsJson,
+    FinalDecision,
+    FinalReasoning,
+    ErrorMessage,
+    CreatedAt,
+    UpdatedAt,
+}

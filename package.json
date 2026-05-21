@@ -1,0 +1,13 @@
+{
+  "name": "amaryllis",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev:backend": "cd core && cargo run",
+    "dev:frontend": "cd web && pnpm run dev",
+    "dev": "concurrently \"pnpm run dev:backend\" \"pnpm run dev:frontend\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

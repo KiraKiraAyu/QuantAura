@@ -1,0 +1,157 @@
+use sea_orm_migration::prelude::*;
+
+#[derive(DeriveMigrationName)]
+pub struct Migration;
+
+#[async_trait::async_trait]
+impl MigrationTrait for Migration {
+    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .create_table(
+                Table::create()
+                    .table(TraderOrders::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(TraderOrders::Id)
+                            .string()
+                            .not_null()
+                            .primary_key(),
+                    )
+                    .col(ColumnDef::new(TraderOrders::TraderId).string().not_null())
+                    .col(ColumnDef::new(TraderOrders::UserId).string().not_null())
+                    .col(
+                        ColumnDef::new(TraderOrders::ExchangeOrderId)
+                            .string()
+                            .not_null()
+                            .default(""),
+                    )
+                    .col(
+                        ColumnDef::new(TraderOrders::ClientOrderId)
+                            .string()
+                            .not_null()
+                            .default(""),
+                    )
+                    .col(ColumnDef::new(TraderOrders::Symbol).string().not_null())
+                    .col(ColumnDef::new(TraderOrders::Side).string().not_null())
+                    .col(
+                        ColumnDef::new(TraderOrders::PositionSide)
+                            .string()
+                            .not_null()
+                            .default(""),
+                    )
+                    .col(ColumnDef::new(TraderOrders::OrderType).string().not_null())
+                    .col(ColumnDef::new(TraderOrders::Status).string().not_null())
+                    .col(
+                        ColumnDef::new(TraderOrders::Price)
+                            .double()
+                            .not_null()
+                            .default(0.0),
+                    )
+                    .col(
+                        ColumnDef::new(TraderOrders::Quantity)
+                            .double()
+                            .not_null()
+                            .default(0.0),
+                    )
+                    .col(
+                        ColumnDef::new(TraderOrders::FilledQuantity)
+                            .double()
+                            .not_null()
+                            .default(0.0),
+                    )
+                    .col(
+                        ColumnDef::new(TraderOrders::AvgFillPrice)
+                            .double()
+                            .not_null()
+                            .default(0.0),
+                    )
+                    .col(
+                        ColumnDef::new(TraderOrders::ReduceOnly)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(TraderOrders::TimeInForce)
+                            .string()
+                            .not_null()
+                            .default(""),
+                    )
+                    .col(
+                        ColumnDef::new(TraderOrders::PlacedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(TraderOrders::UpdatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(TraderOrders::ClosedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .if_not_exists()
+                    .name("idx_trader_orders_trader_status_placed")
+                    .table(TraderOrders::Table)
+                    .col(TraderOrders::TraderId)
+                    .col(TraderOrders::Status)
+                    .col((TraderOrders::PlacedAt, IndexOrder::Desc))
+                    .to_owned(),
+            )
+            .await?;
+        manager
+            .create_index(
+                Index::create()
+                    .if_not_exists()
+                    .name("idx_trader_orders_exchange_order_id")
+                    .table(TraderOrders::Table)
+                    .col(TraderOrders::ExchangeOrderId)
+                    .to_owned(),
+            )
+            .await
+    }
+
+    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .drop_table(
+                Table::drop()
+                    .if_exists()
+                    .table(TraderOrders::Table)
+                    .to_owned(),
+            )
+            .await
+    }
+}
+
+#[derive(DeriveIden)]
+enum TraderOrders {
+    Table,
+    Id,
+    TraderId,
+    UserId,
+    ExchangeOrderId,
+    ClientOrderId,
+    Symbol,
+    Side,
+    PositionSide,
+    OrderType,
+    Status,
+    Price,
+    Quantity,
+    FilledQuantity,
+    AvgFillPrice,
+    ReduceOnly,
+    TimeInForce,
+    PlacedAt,
+    UpdatedAt,
+    ClosedAt,
+}
