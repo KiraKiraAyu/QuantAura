@@ -5,8 +5,8 @@ import type {
 import request from "@/utils/request"
 
 const Api = {
-  SupportedProviderTypes: "/api/supported-provider-types",
-  SupportedExchanges: "/api/supported-exchanges",
+  SupportedProviderTypes: "/api/catalog/supported-provider-types",
+  SupportedExchanges: "/api/catalog/supported-exchanges",
 } as const
 
 export function getSupportedProviderTypesApi() {
