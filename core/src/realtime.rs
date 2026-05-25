@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 use tracing::{debug, warn};
 
+use crate::contracts::trading::positions::PositionPayload;
 use crate::state::AppState;
 
 pub const REALTIME_CHANNEL_CAPACITY: usize = 512;
@@ -20,7 +21,7 @@ pub enum RealtimeEvent {
     PositionUpdate {
         user_id: String,
         trader_id: String,
-        positions: serde_json::Value,
+        positions: Vec<PositionPayload>,
     },
     TradeExecution {
         user_id: String,

@@ -7,6 +7,7 @@ pub(in crate::repositories::trading) fn map_position(
 ) -> TraderPositionRecord {
     TraderPositionRecord {
         id: row.id,
+        trader_id: row.trader_id,
         symbol: row.symbol,
         side: row.side,
         quantity: decimal_to_f64(&row.quantity),

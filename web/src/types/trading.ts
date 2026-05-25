@@ -244,6 +244,7 @@ export interface TraderStatusPayload {
 
 export interface PositionPayload {
   id: string
+  trader_id: string
   symbol: string
   side: string
   quantity: number

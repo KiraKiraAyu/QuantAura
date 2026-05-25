@@ -1,5 +1,6 @@
 import { defineStore } from "pinia"
 import { computed, ref } from "vue"
+import type { PositionPayload } from "@/types/trading"
 import { useAuthStore } from "./auth"
 
 export interface RealtimeEvent {
@@ -14,10 +15,11 @@ export const useRealtimeStore = defineStore("realtime", () => {
   const connected = ref(false)
   const lastEvent = ref<RealtimeEvent | null>(null)
   const equitySnapshot = ref<Record<string, unknown> | null>(null)
-  const positions = ref<unknown[]>([])
+  const positionsByTrader = ref<Record<string, PositionPayload[]>>({})
   const engineStatus = ref<Record<string, string>>({})
 
   const isConnected = computed(() => connected.value)
+  const positions = computed(() => Object.values(positionsByTrader.value).flat())
 
   function connect() {
     const auth = useAuthStore()
@@ -79,7 +81,12 @@ export const useRealtimeStore = defineStore("realtime", () => {
         equitySnapshot.value = ev as Record<string, unknown>
         break
       case "position_update":
-        if (Array.isArray(ev.positions)) positions.value = ev.positions
+        if (typeof ev.trader_id === "string" && Array.isArray(ev.positions)) {
+          setPositionsForTrader(
+            ev.trader_id,
+            ev.positions.filter(isPositionPayload),
+          )
+        }
         break
       case "engine_status":
         if (ev.trader_id && typeof ev.status === "string") {
@@ -87,6 +94,55 @@ export const useRealtimeStore = defineStore("realtime", () => {
         }
         break
     }
+  }
+
+  function setPositionsForTrader(traderId: string, items: PositionPayload[]) {
+    positionsByTrader.value = {
+      ...positionsByTrader.value,
+      [traderId]: items,
+    }
+  }
+
+  function replacePositionsByTrader(next: Record<string, PositionPayload[]>) {
+    positionsByTrader.value = next
+  }
+
+  function removePosition(traderId: string, symbol: string, side: string) {
+    const current = positionsByTrader.value[traderId] ?? []
+    setPositionsForTrader(
+      traderId,
+      current.filter(
+        (position) => position.symbol !== symbol || position.side !== side,
+      ),
+    )
+  }
+
+  function clearPositions() {
+    replacePositionsByTrader({})
+  }
+
+  function isPositionPayload(value: unknown): value is PositionPayload {
+    if (!value || typeof value !== "object") return false
+    const position = value as Record<string, unknown>
+
+    return (
+      typeof position.id === "string" &&
+      typeof position.trader_id === "string" &&
+      typeof position.symbol === "string" &&
+      typeof position.side === "string" &&
+      typeof position.quantity === "number" &&
+      typeof position.entry_price === "number" &&
+      typeof position.mark_price === "number" &&
+      typeof position.liquidation_price === "number" &&
+      typeof position.leverage === "number" &&
+      typeof position.margin_mode === "string" &&
+      typeof position.unrealized_pnl === "number" &&
+      typeof position.realized_pnl === "number" &&
+      typeof position.status === "string" &&
+      typeof position.opened_at === "number" &&
+      (position.closed_at === null || typeof position.closed_at === "number") &&
+      typeof position.updated_at === "number"
+    )
   }
 
   return {
@@ -97,6 +153,10 @@ export const useRealtimeStore = defineStore("realtime", () => {
     positions,
     engineStatus,
     connect,
+    clearPositions,
     disconnect,
+    removePosition,
+    replacePositionsByTrader,
+    setPositionsForTrader,
   }
 })

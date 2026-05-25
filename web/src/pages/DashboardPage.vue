@@ -58,7 +58,7 @@ const {
       @select="selectEquityTrader"
     />
 
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+    <div class="grid grid-cols-1 gap-6">
       <TradersPanel
         :traders="traders"
         :loading="loading"
@@ -68,7 +68,11 @@ const {
         @stop="stopTrader"
         @sync="syncBalance"
       />
-      <OpenPositionsPanel :positions="positions" @close="closePosition" />
+      <OpenPositionsPanel
+        :positions="positions"
+        :trader-name="traderName"
+        @close="closePosition"
+      />
     </div>
 
     <LiveEventsPanel :events="events" />

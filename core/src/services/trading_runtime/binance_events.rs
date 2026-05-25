@@ -4,6 +4,7 @@ use crate::repositories::trading::records::{
     orders::{InsertOrderFillRecord, InsertTraderOrderRecord, UpdateTraderOrderRecord},
     positions::UpsertPositionFromExchangeRecord,
 };
+use crate::services::trading::account::position_payload;
 
 pub async fn recv_user_stream_event(
     rx: &mut Option<mpsc::Receiver<BinanceUserStreamEvent>>,
@@ -357,18 +358,9 @@ pub async fn apply_account_update_event(
         .await
         .unwrap_or_default();
 
-    let positions_snapshot: Vec<serde_json::Value> = open_positions_ws
-        .iter()
-        .map(|r| {
-            json!({
-                "symbol": r.symbol,
-                "side": r.side,
-                "qty": r.quantity,
-                "entry_price": r.entry_price,
-                "mark_price": r.mark_price,
-                "unrealized_pnl": r.unrealized_pnl,
-            })
-        })
+    let positions_snapshot = open_positions_ws
+        .into_iter()
+        .map(position_payload)
         .collect();
 
     state
@@ -376,7 +368,7 @@ pub async fn apply_account_update_event(
         .publish(crate::realtime::RealtimeEvent::PositionUpdate {
             user_id: cfg.user_id.clone(),
             trader_id: cfg.trader_id.clone(),
-            positions: serde_json::Value::Array(positions_snapshot),
+            positions: positions_snapshot,
         });
 
     Ok(())

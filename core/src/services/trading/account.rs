@@ -313,9 +313,10 @@ fn account_payload(trader_id: String, account: TraderAccountRecord) -> TraderAcc
     }
 }
 
-fn position_payload(position: TraderPositionRecord) -> PositionPayload {
+pub(crate) fn position_payload(position: TraderPositionRecord) -> PositionPayload {
     PositionPayload {
         id: position.id,
+        trader_id: position.trader_id,
         symbol: position.symbol,
         side: position.side,
         quantity: position.quantity,

@@ -1,11 +1,7 @@
 import type { PositionPayload, TraderPayload } from "@/types/trading"
 
 export type DashboardTrader = TraderPayload
-
-export interface DashboardPosition extends PositionPayload {
-  qty?: number
-  trader_id?: string
-}
+export type DashboardPosition = PositionPayload
 
 export interface DashboardEquitySnapshot {
   equity: number
