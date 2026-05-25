@@ -6,6 +6,8 @@ import {
   ColorType,
   type UTCTimestamp,
   type CandlestickData,
+  type IChartApi,
+  type ISeriesApi,
 } from "lightweight-charts"
 
 const props = withDefaults(
@@ -17,10 +19,8 @@ const props = withDefaults(
 )
 
 const chartEl = ref<HTMLElement | null>(null)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let chart: any = null
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let candles: any = null
+let chart: IChartApi | null = null
+let candles: ISeriesApi<"Candlestick"> | null = null
 
 onMounted(() => {
   if (!chartEl.value) return
