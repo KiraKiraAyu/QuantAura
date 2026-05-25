@@ -11,7 +11,6 @@ import {
 } from "@/api/strategies"
 import type {
   EditableStrategy,
-  StrategyConfig,
   StrategyPromptPreviewModel,
   StrategyTestResult,
 } from "@/types/strategy-ui"
@@ -31,15 +30,7 @@ export function useStrategyPage() {
     loading.value = true
     try {
       const data = await getStrategiesApi()
-      strategies.value = (data.strategies ?? []).map((strategy) => ({
-        ...(strategy as unknown as EditableStrategy),
-        config:
-          strategy.config &&
-          typeof strategy.config === "object" &&
-          !Array.isArray(strategy.config)
-            ? (strategy.config as StrategyConfig)
-            : {},
-      }))
+      strategies.value = data.strategies
     } finally {
       loading.value = false
     }
@@ -50,7 +41,10 @@ export function useStrategyPage() {
       id: "",
       name: "New Strategy",
       description: "",
+      author_email: "",
       is_active: false,
+      is_default: false,
+      created_at: "",
       updated_at: "",
       config: {
         trading_symbols: "BTCUSDT,ETHUSDT",
@@ -67,9 +61,9 @@ export function useStrategyPage() {
     saving.value = true
     try {
       if (selected.value.id) {
-        await updateStrategyApi(selected.value.id, selected.value as any)
+        await updateStrategyApi(selected.value.id, selected.value)
       } else {
-        const data = await createStrategyApi(selected.value as any)
+        const data = await createStrategyApi(selected.value)
         selected.value.id = data.id
       }
       await load()
@@ -102,18 +96,23 @@ export function useStrategyPage() {
     try {
       const data = await strategyTestRunApi({
         config: selected.value.config,
-        prompt_variant:
-          (selected.value.config?.prompt_variant as string) ?? "balanced",
+        prompt_variant: selected.value.config.prompt_variant ?? "balanced",
         run_real_ai: true,
-      } as any)
-      testResult.value = data as unknown as StrategyTestResult
+      })
+      testResult.value = data
     } catch (error: unknown) {
       testResult.value = {
-        decisions: [],
-        raw_ai_response:
+        system_prompt: "",
+        user_prompt: "",
+        prompt_variant: selected.value.config.prompt_variant ?? "balanced",
+        ai_model_id: "",
+        ai_response:
           error instanceof Error ? error.message : "Strategy test failed",
+        decisions: [],
+        reasoning: "",
         duration_ms: 0,
-      } as StrategyTestResult
+        used_real_ai: false,
+      }
     } finally {
       testRunLoading.value = false
     }
@@ -140,9 +139,8 @@ export function useStrategyPage() {
     try {
       const data = await previewStrategyPromptApi({
         config: selected.value.config,
-        prompt_variant:
-          (selected.value.config?.prompt_variant as string) ?? "balanced",
-      } as any)
+        prompt_variant: selected.value.config.prompt_variant ?? "balanced",
+      })
       previewPromptText.value = {
         system: data.system_prompt,
         variant: data.prompt_variant,

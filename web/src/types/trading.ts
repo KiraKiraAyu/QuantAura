@@ -1,5 +1,3 @@
-import type { JsonValue } from "@/types/json"
-
 export interface CreateTraderRequest {
   name: string
   ai_model_id: string
@@ -373,7 +371,7 @@ export interface RuntimeEventPayload {
   trigger_source: string
   action_taken: string
   correlation_id: string
-  payload: JsonValue
+  payload: Record<string, unknown>
   created_at: number
 }
 

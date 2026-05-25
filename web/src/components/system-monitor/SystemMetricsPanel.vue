@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import StatCard from "@/components/StatCard.vue"
+import type { RuntimeMetricsPayload } from "@/types/trading"
 
 defineProps<{
-  metrics: any
+  metrics: RuntimeMetricsPayload | null
   loading: boolean
   fmt: (value: number) => string
 }>()

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { EditableStrategy } from "@/types/strategy-ui"
+import { formatDate } from "@/utils/format"
 
 defineProps<{
   strategies: EditableStrategy[]
@@ -10,10 +11,6 @@ defineProps<{
 const emit = defineEmits<{
   select: [strategy: EditableStrategy]
 }>()
-
-function fmtDate(value: string) {
-  return new Date(value).toLocaleDateString()
-}
 </script>
 
 <template>
@@ -37,7 +34,7 @@ function fmtDate(value: string) {
         {{ strategy.description || "No description" }}
       </p>
       <p class="text-xs mt-2 text-[--color-border]">
-        Updated {{ fmtDate(strategy.updated_at) }}
+        Updated {{ formatDate(strategy.updated_at) }}
       </p>
     </div>
     <div

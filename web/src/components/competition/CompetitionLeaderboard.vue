@@ -53,8 +53,8 @@ const emit = defineEmits<{
             <th class="text-left py-2 font-semibold">Model</th>
             <th class="text-right py-2 font-semibold">Equity</th>
             <th class="text-right py-2 font-semibold">Return</th>
-            <th class="text-right py-2 font-semibold">Trades</th>
-            <th class="text-right py-2 font-semibold">Win Rate</th>
+            <th class="text-right py-2 font-semibold">Positions</th>
+            <th class="text-right py-2 font-semibold">Margin</th>
             <th class="text-right py-2 font-semibold">Status</th>
           </tr>
         </thead>
@@ -80,12 +80,12 @@ const emit = defineEmits<{
                   :style="avatarStyle(trader.trader_id)"
                 >
                   {{
-                    (trader.name || trader.trader_id).charAt(0).toUpperCase()
+                    (trader.trader_name || trader.trader_id).charAt(0).toUpperCase()
                   }}
                 </div>
                 <div>
                   <p class="font-semibold">
-                    {{ trader.name || trader.trader_id.slice(0, 16) }}
+                    {{ trader.trader_name || trader.trader_id.slice(0, 16) }}
                   </p>
                   <p class="text-[0.6rem] text-[--color-text-muted]">
                     {{ trader.exchange }}
@@ -96,7 +96,9 @@ const emit = defineEmits<{
             <td class="py-3">
               <span>{{ trader.ai_model }}</span>
             </td>
-            <td class="py-3 text-right font-mono">${{ fmt(trader.equity) }}</td>
+            <td class="py-3 text-right font-mono">
+              ${{ fmt(trader.total_equity) }}
+            </td>
             <td class="py-3 text-right font-mono font-bold">
               {{
                 (returnPct(trader) >= 0 ? "+" : "") +
@@ -104,12 +106,12 @@ const emit = defineEmits<{
               }}%
             </td>
             <td class="py-3 text-right font-mono">
-              {{ trader.total_trades ?? "-" }}
+              {{ trader.position_count }}
             </td>
             <td class="py-3 text-right font-mono">
               {{
-                trader.win_rate != null
-                  ? (trader.win_rate * 100).toFixed(1) + "%"
+                trader.margin_used_pct != null
+                  ? trader.margin_used_pct.toFixed(1) + "%"
                   : "-"
               }}
             </td>

@@ -6,7 +6,9 @@ import {
   getTraderListApi,
 } from "@/api/trading"
 import type {
+  RuntimeAlertItemPayload,
   RuntimeAlertHistoryItemPayload,
+  RuntimeEventPayload,
   RuntimeMetricsPayload,
   TraderPayload,
 } from "@/types/trading"
@@ -17,7 +19,7 @@ export function useSystemMonitorPage() {
   const activeTrader = ref("")
   const metrics = ref<RuntimeMetricsPayload | null>(null)
   const alerts = ref<RuntimeAlertHistoryItemPayload[]>([])
-  const events = ref<any[]>([])
+  const events = ref<RuntimeEventPayload[]>([])
 
   function fmt(value: number) {
     return (value || 0).toFixed(2)
@@ -34,17 +36,11 @@ export function useSystemMonitorPage() {
     }
   }
 
-  function parseAlertsJson(value: string | null) {
-    if (!value) return "None"
-    try {
-      const list = JSON.parse(value) as any[]
-      const breached = list
-        .filter((alert) => alert.breached)
-        .map((alert) => alert.key)
-      return breached.length ? breached.join(", ") : "None"
-    } catch {
-      return "Unknown"
-    }
+  function parseAlerts(alerts: RuntimeAlertItemPayload[]) {
+    const breached = alerts
+      .filter((alert) => alert.breached)
+      .map((alert) => alert.key)
+    return breached.length ? breached.join(", ") : "None"
   }
 
   async function loadTraders() {
@@ -94,7 +90,7 @@ export function useSystemMonitorPage() {
     loadAll,
     loading,
     metrics,
-    parseAlertsJson,
+    parseAlerts,
     traders,
   }
 }

@@ -15,6 +15,7 @@ import type {
   DashboardTrader,
   EquityChartPoint,
 } from "@/types/dashboard-ui"
+import type { EquityHistoryPointPayload } from "@/types/public"
 
 export function useDashboardPage() {
   const realtime = useRealtimeStore()
@@ -24,9 +25,7 @@ export function useDashboardPage() {
   const showCreateTrader = ref(false)
 
   const traders = ref<DashboardTrader[]>([])
-  const positions = ref<DashboardPosition[]>(
-    realtime.positions as DashboardPosition[],
-  )
+  const positions = ref<DashboardPosition[]>([])
   const equity = ref<DashboardEquitySnapshot>({
     equity: 0,
     available_cash: 0,
@@ -51,14 +50,7 @@ export function useDashboardPage() {
   async function loadEquityHistory(traderId: string) {
     try {
       const points = await getEquityHistoryApi({ trader_id: traderId })
-      equityHistory.value = points.map((point: any) => ({
-        time:
-          point.ts ??
-          (point.timestamp
-            ? Math.floor(new Date(point.timestamp).getTime() / 1000)
-            : 0),
-        value: point.total_equity ?? point.equity ?? point.value ?? 0,
-      }))
+      equityHistory.value = points.map(equityPoint)
     } catch {
       equityHistory.value = []
     }
@@ -69,9 +61,7 @@ export function useDashboardPage() {
     loadError.value = ""
     try {
       const data = await getTraderListApi()
-      traders.value = Array.isArray(data?.traders)
-        ? (data.traders as unknown as DashboardTrader[])
-        : []
+      traders.value = data.traders
 
       if (traders.value.length === 0) {
         equity.value = {
@@ -151,9 +141,9 @@ export function useDashboardPage() {
   watch(
     () => realtime.positions,
     (value) => {
-      positions.value = value as DashboardPosition[]
+      positions.value = value.filter(isDashboardPosition)
     },
-    { deep: true },
+    { deep: true, immediate: true },
   )
   watch(
     () => realtime.equitySnapshot,
@@ -193,6 +183,19 @@ export function useDashboardPage() {
       }
     }, 5000)
   })
+
+  function equityPoint(point: EquityHistoryPointPayload): EquityChartPoint {
+    return {
+      time: Math.floor(new Date(point.timestamp).getTime() / 1000),
+      value: point.total_equity,
+    }
+  }
+
+  function isDashboardPosition(value: unknown): value is DashboardPosition {
+    if (!value || typeof value !== "object") return false
+    const position = value as Partial<DashboardPosition>
+    return typeof position.symbol === "string" && typeof position.side === "string"
+  }
 
   return {
     activeChart,

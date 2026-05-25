@@ -1,20 +1,9 @@
-export interface DashboardTrader {
-  id: string
-  name?: string
-  is_running?: boolean
-  ai_model_id?: string
-  ai_model?: string
-  exchange_id?: string
-  [key: string]: unknown
-}
+import type { PositionPayload, TraderPayload } from "@/types/trading"
 
-export interface DashboardPosition {
-  symbol: string
-  side: string
+export type DashboardTrader = TraderPayload
+
+export interface DashboardPosition extends PositionPayload {
   qty?: number
-  quantity?: number
-  entry_price: number
-  unrealized_pnl: number
   trader_id?: string
 }
 

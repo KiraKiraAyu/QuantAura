@@ -7,13 +7,17 @@ import { getExchangeConfigsApi } from "@/api/exchanges"
 import { getModelConfigsApi } from "@/api/models"
 import { getStrategiesApi } from "@/api/strategies"
 import { createTraderApi } from "@/api/trading"
+import type { SafeExchangeConfig } from "@/types/exchanges"
+import type { ModelConfigPayload } from "@/types/models"
+import type { StrategyListPayload, StrategyPayload } from "@/types/strategies"
+import type { CreateTraderRequest } from "@/types/trading"
 
 const emit = defineEmits(["close", "created"])
 
 const loading = ref(false)
 const error = ref("")
-const exchanges = ref<Record<string, unknown>[]>([])
-const strategies = ref<Record<string, unknown>[]>([])
+const exchanges = ref<SafeExchangeConfig[]>([])
+const strategies = ref<StrategyPayload[]>([])
 const models = ref<{ id: string; label: string }[]>([])
 const form = ref({
   name: "",
@@ -34,10 +38,11 @@ async function submit() {
     return
   }
   try {
-    await createTraderApi({
+    const payload: CreateTraderRequest = {
       ...form.value,
       strategy_id: form.value.strategy_id || undefined,
-    } as any)
+    }
+    await createTraderApi(payload)
     emit("created")
   } catch (e: unknown) {
     error.value = e instanceof Error ? e.message : "Failed to create trader"
@@ -48,16 +53,16 @@ async function submit() {
 
 onMounted(async () => {
   const [exRes, stRes, modelRes] = await Promise.all([
-    getExchangeConfigsApi().catch(() => [] as any[]),
-    getStrategiesApi().catch(() => ({ strategies: [] }) as any),
-    getModelConfigsApi().catch(() => ({ providers: [] }) as any),
+    getExchangeConfigsApi().catch((): SafeExchangeConfig[] => []),
+    getStrategiesApi().catch(
+      (): StrategyListPayload => ({ strategies: [], count: 0 }),
+    ),
+    getModelConfigsApi().catch((): ModelConfigPayload => ({ providers: [] })),
   ])
-  exchanges.value = Array.isArray(exRes) ? exRes : []
-  strategies.value = Array.isArray(stRes?.strategies) ? stRes.strategies : []
+  exchanges.value = exRes
+  strategies.value = stRes.strategies
 
-  const providerItems = Array.isArray(modelRes?.providers)
-    ? modelRes.providers
-    : []
+  const providerItems = modelRes.providers
   const enabledModels = providerItems.flatMap(
     (provider: {
       name?: string
@@ -109,12 +114,10 @@ onMounted(async () => {
               <option value="">Select exchange…</option>
               <option
                 v-for="ex in exchanges"
-                :key="ex.id as string"
-                :value="ex.id as string"
+                :key="ex.id"
+                :value="ex.id"
               >
-                {{
-                  (ex.account_name as string) || (ex.exchange_type as string)
-                }}
+                {{ ex.account_name || ex.exchange_type }}
               </option>
             </select>
           </div>
@@ -133,10 +136,10 @@ onMounted(async () => {
               <option value="">No strategy</option>
               <option
                 v-for="s in strategies"
-                :key="s.id as string"
-                :value="s.id as string"
+                :key="s.id"
+                :value="s.id"
               >
-                {{ s.name as string }}
+                {{ s.name }}
               </option>
             </select>
           </div>

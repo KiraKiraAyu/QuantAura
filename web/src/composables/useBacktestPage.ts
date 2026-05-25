@@ -38,7 +38,7 @@ export function useBacktestPage() {
     loadingRuns.value = true
     try {
       const data = await getBacktestRunsApi()
-      runs.value = (data.runs ?? []) as unknown as BacktestRun[]
+      runs.value = data.runs
     } finally {
       loadingRuns.value = false
     }
@@ -114,9 +114,15 @@ export function useBacktestPage() {
     () => realtime.lastEvent,
     (event) => {
       if (event?.type !== "backtest_progress") return
-      liveProgress.value = event as unknown as BacktestLiveProgress
       const barIndex = (event.bar_index as number) ?? 0
       const totalBars = (event.total_bars as number) ?? 1
+      liveProgress.value = {
+        run_id: String(event.run_id ?? ""),
+        state: String(event.state ?? ""),
+        bar_index: barIndex,
+        total_bars: totalBars,
+        equity: Number(event.equity ?? 0),
+      }
       progressPct.value = Math.min(
         100,
         Math.round((barIndex / totalBars) * 100),

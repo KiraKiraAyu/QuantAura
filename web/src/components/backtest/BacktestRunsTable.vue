@@ -2,6 +2,7 @@
 import { Icon } from "@iconify/vue"
 import BaseButton from "@/components/universal/BaseButton.vue"
 import type { BacktestRun } from "@/types/backtest-ui"
+import { formatDate } from "@/utils/format"
 
 defineProps<{
   runs: BacktestRun[]
@@ -80,7 +81,7 @@ function returnPct(run: BacktestRun) {
               {{ (run.summary?.max_drawdown_pct ?? 0).toFixed(2) }}%
             </td>
             <td class="py-2 text-[--color-text-muted]">
-              {{ new Date(run.created_at).toLocaleDateString() }}
+              {{ formatDate(run.created_at) }}
             </td>
             <td class="py-2 text-right">
               <BaseButton

@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import type { RuntimeAlertHistoryItemPayload, RuntimeAlertItemPayload } from "@/types/trading"
+import { formatDateTime } from "@/utils/format"
+
 defineProps<{
-  alerts: any[]
+  alerts: RuntimeAlertHistoryItemPayload[]
   loading: boolean
-  parseAlertsJson: (value: string | null) => string
+  parseAlerts: (value: RuntimeAlertItemPayload[]) => string
 }>()
 </script>
 
@@ -40,13 +43,13 @@ defineProps<{
             class="border-t border-[--color-border-subtle]"
           >
             <td class="py-2 text-[--color-text-secondary]">
-              {{ new Date(alert.created_at * 1000).toLocaleString() }}
+              {{ formatDateTime(alert.created_at) }}
             </td>
             <td class="py-2">
               <span>{{ alert.severity }}</span>
             </td>
             <td class="py-2 text-[--color-text-primary]">
-              Triggers: {{ parseAlertsJson(alert.alerts_json) }}
+              Triggers: {{ parseAlerts(alert.alerts) }}
             </td>
           </tr>
         </tbody>

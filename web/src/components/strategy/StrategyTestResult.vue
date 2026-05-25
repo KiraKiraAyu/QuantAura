@@ -28,11 +28,11 @@ defineProps<{
         </span>
       </div>
     </div>
-    <div v-if="result.raw_ai_response" class="mt-3">
+    <div v-if="result.ai_response" class="mt-3">
       <label>Raw AI Response</label>
       <pre
         class="text-xs p-3 rounded-lg overflow-auto max-h-40 font-mono bg-[--color-surface-overlay] text-[--color-text-secondary]"
-        >{{ result.raw_ai_response }}</pre
+        >{{ result.ai_response }}</pre
       >
     </div>
   </div>

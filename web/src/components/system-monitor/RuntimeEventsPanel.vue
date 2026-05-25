@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import type { RuntimeEventPayload } from "@/types/trading"
+import { formatTime } from "@/utils/format"
+
 defineProps<{
-  events: any[]
+  events: RuntimeEventPayload[]
   loading: boolean
   formatMetadata: (value: unknown) => string
 }>()
@@ -34,18 +37,18 @@ defineProps<{
         <div class="flex justify-between items-center text-xs mb-1">
           <span class="font-bold">{{ event.event_type }}</span>
           <span class="text-[--color-text-muted]">
-            {{ new Date(event.timestamp * 1000).toLocaleTimeString() }}
+            {{ formatTime(event.created_at) }}
           </span>
         </div>
         <span
-          v-if="event.action_type"
+          v-if="event.action_taken"
           class="text-[0.65rem] inline-block px-1.5 py-0.5 rounded w-max bg-[--color-surface-overlay] text-[--color-text-muted]"
         >
-          {{ event.action_type }}
+          {{ event.action_taken }}
         </span>
         <pre
           class="text-[10px] whitespace-pre-wrap font-mono overflow-x-auto mt-2 text-[--color-text-secondary]"
-          >{{ formatMetadata(event.metadata) }}</pre
+          >{{ formatMetadata(event.payload) }}</pre
         >
       </div>
     </div>

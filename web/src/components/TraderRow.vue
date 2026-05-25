@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { Icon } from "@iconify/vue"
 import BaseButton from "@/components/universal/BaseButton.vue"
-defineProps<{ trader: Record<string, unknown> }>()
+import type { TraderPayload } from "@/types/trading"
+
+defineProps<{ trader: TraderPayload }>()
 defineEmits(["start", "stop", "sync"])
 </script>
 
@@ -25,7 +27,7 @@ defineEmits(["start", "stop", "sync"])
         {{ trader.name || trader.id }}
       </p>
       <p class="text-xs truncate text-[--color-text-muted]">
-        {{ trader.ai_model_id ?? trader.ai_model ?? "" }} ·
+        {{ trader.ai_model_id }} ·
         {{ trader.exchange_id ?? "" }}
       </p>
     </div>

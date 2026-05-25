@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { DebateSession } from "@/types/debate-ui"
+import { formatDateTime } from "@/utils/format"
 
 defineProps<{
   debates: DebateSession[]
@@ -37,7 +38,7 @@ const emit = defineEmits<{
         {{ debate.current_round }} done
       </p>
       <p class="text-xs mt-1 text-border">
-        {{ new Date(debate.created_at).toLocaleString() }}
+        {{ formatDateTime(debate.created_at) }}
       </p>
     </div>
     <div

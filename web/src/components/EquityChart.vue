@@ -4,6 +4,8 @@ import {
   AreaSeries,
   createChart,
   ColorType,
+  type IChartApi,
+  type ISeriesApi,
   type UTCTimestamp,
 } from "lightweight-charts"
 
@@ -20,10 +22,8 @@ const props = withDefaults(
 )
 
 const chartEl = ref<HTMLElement | null>(null)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let chart: any = null
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let series: any = null
+let chart: IChartApi | null = null
+let series: ISeriesApi<"Area"> | null = null
 
 onMounted(() => {
   if (!chartEl.value) return

@@ -22,11 +22,11 @@ defineProps<{
         class="w-12 h-12 rounded-full flex items-center justify-center text-xl font-black"
         :style="avatarStyle(trader.trader_id)"
       >
-        {{ (trader.name || trader.trader_id).charAt(0).toUpperCase() }}
+        {{ (trader.trader_name || trader.trader_id).charAt(0).toUpperCase() }}
       </div>
       <div class="text-center">
         <p class="font-bold text-sm truncate max-w-30">
-          {{ trader.name || trader.trader_id }}
+          {{ trader.trader_name || trader.trader_id }}
         </p>
         <p class="text-xs text-[--color-text-muted]">
           {{ trader.ai_model }}
@@ -39,7 +39,7 @@ defineProps<{
           }}%
         </p>
         <p class="text-xs text-[--color-text-muted]">
-          ${{ fmt(trader.equity) }}
+          ${{ fmt(trader.total_equity) }}
         </p>
       </div>
       <div

@@ -17,7 +17,7 @@ const emit = defineEmits<{
 <template>
   <div>
     <div class="flex items-center justify-between mb-4">
-      <h2 class="font-bold text-sm">{{ trader.name }} - Equity Curve</h2>
+      <h2 class="font-bold text-sm">{{ trader.trader_name }} - Equity Curve</h2>
       <BaseButton
         @click="emit('close')"
         class="text-xs text-[--color-text-muted]"
