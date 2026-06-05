@@ -333,3 +333,49 @@ pub(crate) fn position_payload(position: TraderPositionRecord) -> PositionPayloa
         updated_at: position.updated_at,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::repositories::trading::records::positions::TraderPositionRecord;
+
+    use super::*;
+
+    #[test]
+    fn position_payload_preserves_complete_position_record() {
+        let payload = position_payload(TraderPositionRecord {
+            id: "position_1".to_string(),
+            trader_id: "trader_1".to_string(),
+            symbol: "BTCUSDT".to_string(),
+            side: "LONG".to_string(),
+            quantity: 1.25,
+            entry_price: 256.5,
+            mark_price: 260.75,
+            liquidation_price: 128.0,
+            leverage: 5,
+            margin_mode: "cross".to_string(),
+            unrealized_pnl: 12.5,
+            realized_pnl: -2.5,
+            status: "open".to_string(),
+            opened_at: 1_700_000_000,
+            closed_at: Some(1_700_000_600),
+            updated_at: 1_700_000_900,
+        });
+
+        assert_eq!(payload.id, "position_1");
+        assert_eq!(payload.trader_id, "trader_1");
+        assert_eq!(payload.symbol, "BTCUSDT");
+        assert_eq!(payload.side, "LONG");
+        assert_eq!(payload.quantity, 1.25);
+        assert_eq!(payload.entry_price, 256.5);
+        assert_eq!(payload.mark_price, 260.75);
+        assert_eq!(payload.liquidation_price, 128.0);
+        assert_eq!(payload.leverage, 5);
+        assert_eq!(payload.margin_mode, "cross");
+        assert_eq!(payload.unrealized_pnl, 12.5);
+        assert_eq!(payload.realized_pnl, -2.5);
+        assert_eq!(payload.status, "open");
+        assert_eq!(payload.opened_at, 1_700_000_000);
+        assert_eq!(payload.closed_at, Some(1_700_000_600));
+        assert_eq!(payload.updated_at, 1_700_000_900);
+    }
+}
