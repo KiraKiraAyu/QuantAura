@@ -56,6 +56,11 @@ onMounted(loadExchanges)
               </p>
             </div>
             <div class="flex items-center gap-2">
+              <span
+                class="text-xs px-2 py-1 rounded bg-[--color-surface] text-[--color-text-muted]"
+              >
+                {{ ex.testnet ? "Testnet" : "Live" }}
+              </span>
               <span :class="ex.enabled ? '' : ''">
                 {{ ex.enabled ? "Active" : "Disabled" }}
               </span>

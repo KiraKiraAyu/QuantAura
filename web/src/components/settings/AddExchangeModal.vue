@@ -20,6 +20,7 @@ const newEx = ref<CreateExchangeRequest>({
   account_name: "",
   api_key: "",
   secret_key: "",
+  testnet: true,
 })
 
 async function addExchange() {
@@ -80,6 +81,10 @@ onMounted(loadSupportedExchanges)
             placeholder="secret…"
           />
         </div>
+        <label class="flex items-center gap-2 text-sm cursor-pointer">
+          <BaseInput v-model="newEx.testnet" type="checkbox" />
+          <span>Use testnet</span>
+        </label>
         <div class="flex gap-3">
           <BaseButton @click="addExchange" class="flex-1" :disabled="addingEx">
             <Icon
