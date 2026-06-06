@@ -259,6 +259,7 @@ async fn submit_live_close_order(
         ));
     }
 
+    let cfg = manual_runtime_config(trader);
     let close_side = close_order_side(side)?;
     let position_side = order_position_side(side)?;
     let order = adapter
@@ -269,13 +270,15 @@ async fn submit_live_close_order(
             quantity,
             price: None,
             reduce_only: true,
+            margin_mode: Some(
+                crate::services::trading_runtime::config_loaders::margin_mode_for_config(&cfg),
+            ),
             position_side: Some(position_side),
             time_in_force: None,
             client_order_id: Some(format!("manual_{}", Uuid::now_v7().simple())),
         })
         .await?;
 
-    let cfg = manual_runtime_config(trader);
     persist_live_order_record(runtime_state, &cfg, adapter, &order, side, true, now_ts()).await?;
     Ok(order.order_id)
 }
@@ -317,6 +320,7 @@ fn manual_runtime_config(trader: &TraderRecord) -> TraderRuntimeConfig {
         initial_balance: trader.initial_balance,
         btc_eth_leverage: trader.btc_eth_leverage,
         altcoin_leverage: trader.altcoin_leverage,
+        is_cross_margin: trader.is_cross_margin != 0,
         trading_symbols: trader.trading_symbols.clone(),
         custom_prompt: trader.custom_prompt.clone(),
         override_base_prompt: trader.override_base_prompt != 0,

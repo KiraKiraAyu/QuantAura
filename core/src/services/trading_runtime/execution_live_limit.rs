@@ -7,6 +7,7 @@ pub async fn place_live_open_order_limit_first(
     qty: f64,
     reference_price: f64,
     constraints: &ExchangeSymbolConstraints,
+    margin_mode: ExchangeMarginMode,
 ) -> Result<crate::clients::exchanges::PlaceOrderResponse, AppError> {
     let open_side = if desired_side == "LONG" {
         ExchangeSide::Buy
@@ -37,6 +38,7 @@ pub async fn place_live_open_order_limit_first(
                 quantity: qty,
                 price: Some(limit_price),
                 reduce_only: false,
+                margin_mode: Some(margin_mode),
                 position_side: Some(position_side),
                 time_in_force: Some(TimeInForce::Fok),
                 client_order_id: Some(format!("nfx_lmt_{}", Uuid::now_v7().simple())),
@@ -71,6 +73,7 @@ pub async fn place_live_open_order_limit_first(
             quantity: qty,
             price: None,
             reduce_only: false,
+            margin_mode: Some(margin_mode),
             position_side: Some(position_side),
             time_in_force: None,
             client_order_id: Some(format!("nfx_mkt_{}", Uuid::now_v7().simple())),

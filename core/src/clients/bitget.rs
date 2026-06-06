@@ -10,10 +10,10 @@ use uuid::Uuid;
 use crate::{
     clients::{
         exchanges::{
-            CancelOrderResponse, ExchangeBalance, ExchangeCredentials, ExchangeOpenOrder,
-            ExchangeOrderDetail, ExchangeOrderType, ExchangePosition, ExchangeSide,
-            ExchangeSymbolConstraints, ExchangeTradeFill, LiveExchangeAdapter, PlaceOrderRequest,
-            PlaceOrderResponse, PositionSide, TimeInForce,
+            CancelOrderResponse, ExchangeBalance, ExchangeCredentials, ExchangeMarginMode,
+            ExchangeOpenOrder, ExchangeOrderDetail, ExchangeOrderType, ExchangePosition,
+            ExchangeSide, ExchangeSymbolConstraints, ExchangeTradeFill, ExchangeUserStreamSession,
+            LiveExchangeAdapter, PlaceOrderRequest, PlaceOrderResponse, PositionSide, TimeInForce,
         },
         outbound_http::{OutboundRequestLog, OutboundResponse, send_text},
     },
@@ -33,6 +33,7 @@ pub struct BitgetFuturesAdapter {
     passphrase: String,
     simulated: bool,
     base_url: String,
+    ws_url: String,
 }
 
 impl BitgetFuturesAdapter {
@@ -65,6 +66,7 @@ impl BitgetFuturesAdapter {
             passphrase,
             simulated: credentials.testnet,
             base_url: "https://api.bitget.com".to_string(),
+            ws_url: "wss://ws.bitget.com/v2/ws/private".to_string(),
         })
     }
 
@@ -217,7 +219,7 @@ impl LiveExchangeAdapter for BitgetFuturesAdapter {
         let mut body = json!({
             "symbol": symbol,
             "productType": PRODUCT_TYPE,
-            "marginMode": "crossed",
+            "marginMode": bitget_margin_mode(req.margin_mode.unwrap_or(ExchangeMarginMode::Cross)),
             "marginCoin": MARGIN_COIN,
             "size": format_decimal(req.quantity),
             "side": bitget_side(req.side),
@@ -268,6 +270,52 @@ impl LiveExchangeAdapter for BitgetFuturesAdapter {
             executed_qty: 0.0,
             update_time: now_millis(),
         })
+    }
+
+    async fn ensure_symbol_settings(
+        &self,
+        symbol: &str,
+        leverage: i64,
+        margin_mode: ExchangeMarginMode,
+    ) -> Result<(), AppError> {
+        let symbol = bitget_symbol(symbol);
+        let leverage = leverage.clamp(1, 125).to_string();
+
+        let _: Value = self
+            .private_post(
+                "/api/v2/mix/account/set-margin-mode",
+                json!({
+                    "symbol": symbol,
+                    "productType": PRODUCT_TYPE,
+                    "marginCoin": MARGIN_COIN,
+                    "marginMode": bitget_margin_mode(margin_mode),
+                }),
+            )
+            .await?;
+
+        let position_mode = self.position_mode().await?;
+        let hold_sides = if matches!(position_mode, BitgetPositionMode::Hedge) {
+            vec![Some("long"), Some("short")]
+        } else {
+            vec![None]
+        };
+
+        for hold_side in hold_sides {
+            let mut body = json!({
+                "symbol": symbol,
+                "productType": PRODUCT_TYPE,
+                "marginCoin": MARGIN_COIN,
+                "leverage": leverage,
+            });
+            if let Some(hold_side) = hold_side {
+                body["holdSide"] = Value::String(hold_side.to_string());
+            }
+            let _: Value = self
+                .private_post("/api/v2/mix/account/set-leverage", body)
+                .await?;
+        }
+
+        Ok(())
     }
 
     async fn cancel_order(
@@ -466,6 +514,31 @@ impl LiveExchangeAdapter for BitgetFuturesAdapter {
         Err(AppError::UnsupportedExchange(
             "bitget user stream is not wired into runtime yet".to_string(),
         ))
+    }
+
+    async fn user_stream_session(&self) -> Result<ExchangeUserStreamSession, AppError> {
+        let timestamp = (now_millis() / 1000).to_string();
+        let signature = sign_bitget(&self.secret_key, &timestamp, "GET", "/user/verify", "")?;
+        Ok(
+            ExchangeUserStreamSession::private_ws("bitget", self.ws_url.clone())
+                .with_initial_json(json!({
+                    "op": "login",
+                    "args": [{
+                        "apiKey": self.api_key,
+                        "passphrase": self.passphrase,
+                        "timestamp": timestamp,
+                        "sign": signature,
+                    }]
+                }))
+                .with_initial_json(json!({
+                    "op": "subscribe",
+                    "args": [
+                        {"instType": PRODUCT_TYPE, "channel": "orders", "instId": "default"},
+                        {"instType": PRODUCT_TYPE, "channel": "positions", "instId": "default"},
+                        {"instType": PRODUCT_TYPE, "channel": "account", "coin": MARGIN_COIN}
+                    ]
+                })),
+        )
     }
 }
 

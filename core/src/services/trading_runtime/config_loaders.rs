@@ -33,6 +33,7 @@ pub async fn load_trader_runtime_config(
         initial_balance: row.initial_balance,
         btc_eth_leverage: row.btc_eth_leverage,
         altcoin_leverage: row.altcoin_leverage,
+        is_cross_margin: row.is_cross_margin != 0,
         trading_symbols: row.trading_symbols,
         custom_prompt: row.custom_prompt,
         override_base_prompt: row.override_base_prompt != 0,
@@ -128,6 +129,9 @@ pub async fn load_runtime_execution_context(
         )));
     }
 
+    let symbols = parse_symbols(&cfg.trading_symbols);
+    preflight_live_symbols(adapter.as_ref(), cfg, &symbols).await?;
+
     Ok((
         RuntimeExecutionContext {
             mode: RuntimeExecutionMode::LiveExchange,
@@ -177,6 +181,73 @@ pub fn leverage_for_symbol(cfg: &TraderRuntimeConfig, symbol: &str) -> i64 {
     } else {
         cfg.altcoin_leverage.clamp(1, 50)
     }
+}
+
+pub async fn preflight_live_symbols(
+    adapter: &dyn LiveExchangeAdapter,
+    cfg: &TraderRuntimeConfig,
+    symbols: &[String],
+) -> Result<(), AppError> {
+    let margin_mode = margin_mode_for_config(cfg);
+
+    for symbol in symbols {
+        let symbol = symbol.trim().to_uppercase();
+        if symbol.is_empty() {
+            continue;
+        }
+
+        let constraints = adapter.get_symbol_constraints(&symbol).await?;
+        validate_symbol_constraints(adapter.exchange_type(), &symbol, &constraints)?;
+        adapter
+            .ensure_symbol_settings(&symbol, leverage_for_symbol(cfg, &symbol), margin_mode)
+            .await?;
+    }
+
+    Ok(())
+}
+
+pub fn margin_mode_for_config(cfg: &TraderRuntimeConfig) -> ExchangeMarginMode {
+    if cfg.is_cross_margin {
+        ExchangeMarginMode::Cross
+    } else {
+        ExchangeMarginMode::Isolated
+    }
+}
+
+pub fn validate_symbol_constraints(
+    exchange_type: &str,
+    requested_symbol: &str,
+    constraints: &ExchangeSymbolConstraints,
+) -> Result<(), AppError> {
+    let valid = !constraints.symbol.trim().is_empty()
+        && !constraints.base_asset.trim().is_empty()
+        && !constraints.quote_asset.trim().is_empty()
+        && constraints.min_qty.is_finite()
+        && constraints.min_qty > 0.0
+        && constraints.step_size.is_finite()
+        && constraints.step_size > 0.0
+        && constraints.tick_size.is_finite()
+        && constraints.tick_size > 0.0
+        && constraints.min_notional.is_finite()
+        && constraints.min_notional > 0.0
+        && constraints.max_qty.is_finite()
+        && constraints.max_qty >= 0.0;
+
+    if valid {
+        return Ok(());
+    }
+
+    Err(AppError::InvalidExchangeConfig(format!(
+        "invalid symbol constraints exchange={} requested_symbol={} symbol={} min_qty={} max_qty={} step_size={} min_notional={} tick_size={}",
+        exchange_type,
+        requested_symbol,
+        constraints.symbol,
+        constraints.min_qty,
+        constraints.max_qty,
+        constraints.step_size,
+        constraints.min_notional,
+        constraints.tick_size,
+    )))
 }
 
 pub fn liquidation_price(side: &str, entry: f64, leverage: i64) -> f64 {

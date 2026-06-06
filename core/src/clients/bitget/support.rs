@@ -238,6 +238,13 @@ pub(super) fn bitget_trade_side(reduce_only: bool) -> &'static str {
     if reduce_only { "close" } else { "open" }
 }
 
+pub(super) fn bitget_margin_mode(mode: ExchangeMarginMode) -> &'static str {
+    match mode {
+        ExchangeMarginMode::Cross => "crossed",
+        ExchangeMarginMode::Isolated => "isolated",
+    }
+}
+
 pub(super) fn bitget_position_mode(pos_mode: &str) -> BitgetPositionMode {
     match pos_mode.trim().to_ascii_lowercase().as_str() {
         "hedge_mode" => BitgetPositionMode::Hedge,

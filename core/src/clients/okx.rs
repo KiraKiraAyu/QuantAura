@@ -13,10 +13,10 @@ use uuid::Uuid;
 use crate::{
     clients::{
         exchanges::{
-            CancelOrderResponse, ExchangeBalance, ExchangeCredentials, ExchangeOpenOrder,
-            ExchangeOrderDetail, ExchangeOrderType, ExchangePosition, ExchangeSide,
-            ExchangeSymbolConstraints, ExchangeTradeFill, LiveExchangeAdapter, PlaceOrderRequest,
-            PlaceOrderResponse, PositionSide, TimeInForce,
+            CancelOrderResponse, ExchangeBalance, ExchangeCredentials, ExchangeMarginMode,
+            ExchangeOpenOrder, ExchangeOrderDetail, ExchangeOrderType, ExchangePosition,
+            ExchangeSide, ExchangeSymbolConstraints, ExchangeTradeFill, ExchangeUserStreamSession,
+            LiveExchangeAdapter, PlaceOrderRequest, PlaceOrderResponse, PositionSide, TimeInForce,
         },
         outbound_http::{OutboundRequestLog, OutboundResponse, send_text},
     },
@@ -33,6 +33,7 @@ pub struct OkxFuturesAdapter {
     passphrase: String,
     simulated: bool,
     base_url: String,
+    ws_url: String,
 }
 
 impl OkxFuturesAdapter {
@@ -65,6 +66,12 @@ impl OkxFuturesAdapter {
             passphrase,
             simulated: credentials.testnet,
             base_url: "https://www.okx.com".to_string(),
+            ws_url: if credentials.testnet {
+                "wss://wspap.okx.com:8443/ws/v5/private"
+            } else {
+                "wss://ws.okx.com:8443/ws/v5/private"
+            }
+            .to_string(),
         })
     }
 
@@ -229,7 +236,7 @@ impl LiveExchangeAdapter for OkxFuturesAdapter {
 
         let mut body = json!({
             "instId": inst.inst_id,
-            "tdMode": "cross",
+            "tdMode": okx_td_mode(req.margin_mode.unwrap_or(ExchangeMarginMode::Cross)),
             "side": okx_side(req.side),
             "ordType": okx_order_type(req.order_type, req.time_in_force),
             "sz": format_decimal(size_contracts),
@@ -284,6 +291,40 @@ impl LiveExchangeAdapter for OkxFuturesAdapter {
             executed_qty: 0.0,
             update_time: now_millis(),
         })
+    }
+
+    async fn ensure_symbol_settings(
+        &self,
+        symbol: &str,
+        leverage: i64,
+        margin_mode: ExchangeMarginMode,
+    ) -> Result<(), AppError> {
+        let inst_id = okx_inst_id(symbol);
+        let leverage = leverage.clamp(1, 125).to_string();
+        let mgn_mode = okx_td_mode(margin_mode);
+        let position_mode = self.position_mode().await?;
+
+        let pos_sides = if matches!(position_mode, OkxPositionMode::LongShort) {
+            vec![Some("long"), Some("short")]
+        } else {
+            vec![None]
+        };
+
+        for pos_side in pos_sides {
+            let mut body = json!({
+                "instId": inst_id,
+                "lever": leverage,
+                "mgnMode": mgn_mode,
+            });
+            if let Some(pos_side) = pos_side {
+                body["posSide"] = Value::String(pos_side.to_string());
+            }
+            let _: Vec<Value> = self
+                .private_post("/api/v5/account/set-leverage", body)
+                .await?;
+        }
+
+        Ok(())
     }
 
     async fn cancel_order(
@@ -485,6 +526,52 @@ impl LiveExchangeAdapter for OkxFuturesAdapter {
         Err(AppError::UnsupportedExchange(
             "okx user stream is not wired into runtime yet".to_string(),
         ))
+    }
+
+    async fn user_stream_session(&self) -> Result<ExchangeUserStreamSession, AppError> {
+        let timestamp = Utc::now().timestamp().to_string();
+        let signature = sign_okx(
+            &self.secret_key,
+            &timestamp,
+            "GET",
+            "/users/self/verify",
+            "",
+        )?;
+        let multipliers = self
+            .instruments_by_inst_id()
+            .await?
+            .into_iter()
+            .flat_map(|(inst_id, inst)| {
+                let ct_val = okx_contract_size(&inst);
+                [
+                    (inst_id.clone(), ct_val),
+                    (internal_symbol(&inst_id), ct_val),
+                ]
+            })
+            .collect::<HashMap<_, _>>();
+
+        Ok(
+            ExchangeUserStreamSession::private_ws("okx", self.ws_url.clone())
+                .with_quantity_multipliers(multipliers)
+                .with_initial_json(json!({
+                    "op": "login",
+                    "args": [{
+                        "apiKey": self.api_key,
+                        "passphrase": self.passphrase,
+                        "timestamp": timestamp,
+                        "sign": signature,
+                    }]
+                }))
+                .with_initial_json(json!({
+                    "op": "subscribe",
+                    "args": [
+                        {"channel": "orders", "instType": "SWAP"},
+                        {"channel": "account"},
+                        {"channel": "positions", "instType": "SWAP"},
+                        {"channel": "balance_and_position"}
+                    ]
+                })),
+        )
     }
 }
 

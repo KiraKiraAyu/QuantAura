@@ -9,10 +9,10 @@ use uuid::Uuid;
 use crate::{
     clients::{
         exchanges::{
-            CancelOrderResponse, ExchangeBalance, ExchangeCredentials, ExchangeOpenOrder,
-            ExchangeOrderDetail, ExchangeOrderType, ExchangePosition, ExchangeSide,
-            ExchangeSymbolConstraints, ExchangeTradeFill, LiveExchangeAdapter, PlaceOrderRequest,
-            PlaceOrderResponse, PositionSide, TimeInForce,
+            CancelOrderResponse, ExchangeBalance, ExchangeCredentials, ExchangeMarginMode,
+            ExchangeOpenOrder, ExchangeOrderDetail, ExchangeOrderType, ExchangePosition,
+            ExchangeSide, ExchangeSymbolConstraints, ExchangeTradeFill, ExchangeUserStreamSession,
+            LiveExchangeAdapter, PlaceOrderRequest, PlaceOrderResponse, PositionSide, TimeInForce,
         },
         outbound_http::{OutboundRequestLog, OutboundResponse, send_text},
     },
@@ -28,6 +28,7 @@ pub struct HyperliquidAdapter {
     wallet_addr: String,
     private_key: String,
     base_url: String,
+    ws_url: String,
     testnet: bool,
 }
 
@@ -54,12 +55,18 @@ impl HyperliquidAdapter {
         } else {
             "https://api.hyperliquid.xyz"
         };
+        let ws_url = if credentials.testnet {
+            "wss://api.hyperliquid-testnet.xyz/ws"
+        } else {
+            "wss://api.hyperliquid.xyz/ws"
+        };
 
         Ok(Self {
             client: Client::builder().build().map_err(AppError::ExchangeHttp)?,
             wallet_addr: normalize_address(&wallet_addr),
             private_key: credentials.secret_key,
             base_url: base_url.to_string(),
+            ws_url: ws_url.to_string(),
             testnet: credentials.testnet,
         })
     }
@@ -268,6 +275,34 @@ impl LiveExchangeAdapter for HyperliquidAdapter {
                 .unwrap_or(0.0),
             update_time: nonce,
         })
+    }
+
+    async fn ensure_symbol_settings(
+        &self,
+        symbol: &str,
+        leverage: i64,
+        margin_mode: ExchangeMarginMode,
+    ) -> Result<(), AppError> {
+        let asset = self.asset(symbol).await?;
+        let leverage = leverage.clamp(1, 125);
+        if leverage > asset.max_leverage {
+            return Err(AppError::InvalidExchangeConfig(format!(
+                "hyperliquid leverage {} exceeds max {} for {}",
+                leverage, asset.max_leverage, asset.coin
+            )));
+        }
+        let response = self
+            .exchange(
+                &HyperliquidAction::UpdateLeverage {
+                    asset: asset.index,
+                    is_cross: matches!(margin_mode, ExchangeMarginMode::Cross),
+                    leverage: leverage as u32,
+                },
+                now_millis(),
+            )
+            .await?;
+        ensure_hyperliquid_status_ok(&response)?;
+        Ok(())
     }
 
     async fn cancel_order(
@@ -482,6 +517,25 @@ impl LiveExchangeAdapter for HyperliquidAdapter {
         Err(AppError::UnsupportedExchange(
             "hyperliquid user stream is not wired into runtime yet".to_string(),
         ))
+    }
+
+    async fn user_stream_session(&self) -> Result<ExchangeUserStreamSession, AppError> {
+        Ok(
+            ExchangeUserStreamSession::private_ws("hyperliquid", self.ws_url.clone())
+                .without_heartbeat()
+                .with_initial_json(json!({
+                    "method": "subscribe",
+                    "subscription": {"type": "userEvents", "user": self.wallet_addr}
+                }))
+                .with_initial_json(json!({
+                    "method": "subscribe",
+                    "subscription": {"type": "orderUpdates", "user": self.wallet_addr}
+                }))
+                .with_initial_json(json!({
+                    "method": "subscribe",
+                    "subscription": {"type": "webData2", "user": self.wallet_addr}
+                })),
+        )
     }
 }
 

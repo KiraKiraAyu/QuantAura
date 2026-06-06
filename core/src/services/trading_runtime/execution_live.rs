@@ -378,6 +378,7 @@ pub async fn execute_decisions_live(
                         quantity: close_qty,
                         price: None,
                         reduce_only: true,
+                        margin_mode: Some(margin_mode_for_config(cfg)),
                         position_side: Some(if p.side == "LONG" {
                             PositionSide::Long
                         } else {
@@ -543,6 +544,7 @@ pub async fn execute_decisions_live(
             qty,
             price,
             &constraints,
+            margin_mode_for_config(cfg),
         )
         .await?;
 
@@ -685,6 +687,7 @@ pub async fn close_worst_positions_live(
                 quantity: close_qty,
                 price: None,
                 reduce_only: true,
+                margin_mode: Some(margin_mode_for_config(cfg)),
                 position_side: Some(if p.side == "LONG" {
                     PositionSide::Long
                 } else {
@@ -1260,6 +1263,7 @@ pub async fn cancel_replace_stale_live_limit_open_orders(
             normalized_qty,
             mark_price,
             &constraints,
+            margin_mode_for_config(cfg),
         )
         .await?;
 

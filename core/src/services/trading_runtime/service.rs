@@ -17,8 +17,11 @@ pub use uuid::Uuid;
 
 pub use crate::{
     clients::exchanges::{
-        ExchangeCredentials, ExchangeOrderType, ExchangeSide, ExchangeSymbolConstraints,
-        LiveExchangeAdapter, PlaceOrderRequest, PositionSide, TimeInForce, create_exchange_adapter,
+        ExchangeAccountBalanceUpdate, ExchangeAccountPositionUpdate, ExchangeAccountStreamUpdate,
+        ExchangeCredentials, ExchangeMarginMode, ExchangeOrderStreamUpdate, ExchangeOrderType,
+        ExchangeSide, ExchangeSymbolConstraints, ExchangeUserStreamEvent,
+        ExchangeUserStreamSession, LiveExchangeAdapter, PlaceOrderRequest, PositionSide,
+        TimeInForce, create_exchange_adapter, spawn_exchange_user_stream_reader,
     },
     error::AppError,
     realtime::RealtimeHub,

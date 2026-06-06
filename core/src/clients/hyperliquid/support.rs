@@ -30,6 +30,13 @@ pub(super) enum HyperliquidAction {
     Cancel {
         cancels: Vec<HyperliquidCancelAction>,
     },
+    #[serde(rename = "updateLeverage")]
+    UpdateLeverage {
+        asset: usize,
+        #[serde(rename = "isCross")]
+        is_cross: bool,
+        leverage: u32,
+    },
 }
 
 #[derive(Debug, Serialize)]

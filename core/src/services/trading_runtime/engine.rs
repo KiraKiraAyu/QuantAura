@@ -35,8 +35,8 @@ pub async fn run_trader_loop(
     let mut consecutive_live_failures: u32 = 0;
     let live_circuit_breaker_limit: u32 = 5;
 
-    let mut user_stream_rx: Option<mpsc::Receiver<BinanceUserStreamEvent>> = None;
-    let mut user_stream_listen_key: Option<String> = None;
+    let mut user_stream_rx: Option<mpsc::Receiver<ExchangeUserStreamEvent>> = None;
+    let mut user_stream_session: Option<ExchangeUserStreamSession> = None;
     let mut user_stream_keepalive = time::interval(Duration::from_secs(30 * 60));
     user_stream_keepalive.set_missed_tick_behavior(MissedTickBehavior::Skip);
     let user_stream_reconnect_backoff = Duration::from_secs(2);
@@ -44,10 +44,11 @@ pub async fn run_trader_loop(
     if exec_ctx.mode == RuntimeExecutionMode::LiveExchange {
         if let Some(adapter) = live_adapter.as_deref() {
             match init_exchange_user_stream(adapter).await {
-                Ok((listen_key, ws_url)) => {
-                    let reader_rx = spawn_binance_user_stream_reader(ws_url, stop_rx.clone());
+                Ok(session) => {
+                    let reader_rx =
+                        spawn_exchange_user_stream_reader(session.clone(), stop_rx.clone());
                     user_stream_rx = Some(reader_rx);
-                    user_stream_listen_key = Some(listen_key);
+                    user_stream_session = Some(session);
                     info!(
                         "exchange user stream initialized trader={} exchange={}",
                         cfg.trader_id,
@@ -62,7 +63,7 @@ pub async fn run_trader_loop(
                         err
                     );
                     user_stream_rx = None;
-                    user_stream_listen_key = None;
+                    user_stream_session = None;
                 }
             }
         }
@@ -148,22 +149,22 @@ pub async fn run_trader_loop(
             }
             _ = user_stream_keepalive.tick() => {
                 if exec_ctx.mode == RuntimeExecutionMode::LiveExchange {
-                    if let (Some(adapter), Some(listen_key)) = (live_adapter.as_deref(), user_stream_listen_key.as_deref()) {
-                        if let Err(err) = adapter.keepalive_user_stream(listen_key).await {
+                    if let (Some(adapter), Some(session)) = (live_adapter.as_deref(), user_stream_session.as_ref()) {
+                        if let Err(err) = adapter.keepalive_user_stream_session(session).await {
                             warn!(
                                 "exchange user stream keepalive failed trader={} err={}",
                                 cfg.trader_id, err
                             );
 
-                            if let Some(old_key) = user_stream_listen_key.take() {
-                                let _ = adapter.close_user_stream(&old_key).await;
+                            if let Some(old_session) = user_stream_session.take() {
+                                let _ = adapter.close_user_stream_session(&old_session).await;
                             }
 
                             time::sleep(user_stream_reconnect_backoff).await;
                             match init_exchange_user_stream(adapter).await {
-                                Ok((listen_key, ws_url)) => {
-                                    user_stream_rx = Some(spawn_binance_user_stream_reader(ws_url, stop_rx.clone()));
-                                    user_stream_listen_key = Some(listen_key);
+                                Ok(session) => {
+                                    user_stream_rx = Some(spawn_exchange_user_stream_reader(session.clone(), stop_rx.clone()));
+                                    user_stream_session = Some(session);
                                     info!("exchange user stream reconnected after keepalive failure trader={}", cfg.trader_id);
                                 }
                                 Err(reconnect_err) => {
@@ -172,7 +173,7 @@ pub async fn run_trader_loop(
                                         cfg.trader_id, reconnect_err
                                     );
                                     user_stream_rx = None;
-                                    user_stream_listen_key = None;
+                                    user_stream_session = None;
                                 }
                             }
                         }
@@ -181,10 +182,10 @@ pub async fn run_trader_loop(
             }
             event = recv_user_stream_event(&mut user_stream_rx) => {
                 if let Some(event) = event {
-                    let should_reconnect = matches!(event, BinanceUserStreamEvent::ListenKeyExpired { .. });
+                    let should_reconnect = matches!(event, ExchangeUserStreamEvent::ListenKeyExpired { .. });
 
                     let now = now_i64();
-                    if let Err(err) = handle_binance_user_stream_event(&engine.inner.state, &cfg, event, now).await {
+                    if let Err(err) = handle_exchange_user_stream_event(&engine.inner.state, &cfg, event, now).await {
                         warn!(
                             "exchange user stream event handling failed trader={} err={}",
                             cfg.trader_id, err
@@ -193,15 +194,15 @@ pub async fn run_trader_loop(
 
                     if should_reconnect && exec_ctx.mode == RuntimeExecutionMode::LiveExchange {
                         if let Some(adapter) = live_adapter.as_deref() {
-                            if let Some(old_key) = user_stream_listen_key.take() {
-                                let _ = adapter.close_user_stream(&old_key).await;
+                            if let Some(old_session) = user_stream_session.take() {
+                                let _ = adapter.close_user_stream_session(&old_session).await;
                             }
 
                             time::sleep(user_stream_reconnect_backoff).await;
                             match init_exchange_user_stream(adapter).await {
-                                Ok((listen_key, ws_url)) => {
-                                    user_stream_rx = Some(spawn_binance_user_stream_reader(ws_url, stop_rx.clone()));
-                                    user_stream_listen_key = Some(listen_key);
+                                Ok(session) => {
+                                    user_stream_rx = Some(spawn_exchange_user_stream_reader(session.clone(), stop_rx.clone()));
+                                    user_stream_session = Some(session);
                                     info!("exchange user stream reconnected after listen key expiration trader={}", cfg.trader_id);
                                 }
                                 Err(reconnect_err) => {
@@ -210,7 +211,7 @@ pub async fn run_trader_loop(
                                         cfg.trader_id, reconnect_err
                                     );
                                     user_stream_rx = None;
-                                    user_stream_listen_key = None;
+                                    user_stream_session = None;
                                 }
                             }
                         }
@@ -222,15 +223,15 @@ pub async fn run_trader_loop(
                             cfg.trader_id
                         );
 
-                        if let Some(old_key) = user_stream_listen_key.take() {
-                            let _ = adapter.close_user_stream(&old_key).await;
+                        if let Some(old_session) = user_stream_session.take() {
+                            let _ = adapter.close_user_stream_session(&old_session).await;
                         }
 
                         time::sleep(user_stream_reconnect_backoff).await;
                         match init_exchange_user_stream(adapter).await {
-                            Ok((listen_key, ws_url)) => {
-                                user_stream_rx = Some(spawn_binance_user_stream_reader(ws_url, stop_rx.clone()));
-                                user_stream_listen_key = Some(listen_key);
+                            Ok(session) => {
+                                user_stream_rx = Some(spawn_exchange_user_stream_reader(session.clone(), stop_rx.clone()));
+                                user_stream_session = Some(session);
                                 info!("exchange user stream reconnected after disconnect trader={}", cfg.trader_id);
                             }
                             Err(reconnect_err) => {
@@ -239,7 +240,7 @@ pub async fn run_trader_loop(
                                     cfg.trader_id, reconnect_err
                                 );
                                 user_stream_rx = None;
-                                user_stream_listen_key = None;
+                                user_stream_session = None;
                             }
                         }
                     }
@@ -258,10 +259,9 @@ pub async fn run_trader_loop(
         }
     }
 
-    if let (Some(adapter), Some(listen_key)) =
-        (live_adapter.as_deref(), user_stream_listen_key.as_deref())
+    if let (Some(adapter), Some(session)) = (live_adapter.as_deref(), user_stream_session.as_ref())
     {
-        if let Err(err) = adapter.close_user_stream(listen_key).await {
+        if let Err(err) = adapter.close_user_stream_session(session).await {
             warn!(
                 "exchange user stream close failed trader={} err={}",
                 cfg.trader_id, err
@@ -281,14 +281,8 @@ pub async fn run_trader_loop(
 
 async fn init_exchange_user_stream(
     adapter: &dyn LiveExchangeAdapter,
-) -> Result<(String, String), AppError> {
-    // OKX, Bitget, and Hyperliquid currently rely on the cycle poller for account sync.
-    match adapter.exchange_type() {
-        "binance" | "aster" => init_binance_user_stream(adapter).await,
-        other => Err(AppError::UnsupportedExchange(format!(
-            "{other} user stream is not wired into runtime yet"
-        ))),
-    }
+) -> Result<ExchangeUserStreamSession, AppError> {
+    adapter.user_stream_session().await
 }
 
 pub async fn process_cycle(

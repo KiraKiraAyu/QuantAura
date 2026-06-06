@@ -39,6 +39,13 @@ pub enum TimeInForce {
     Fok,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ExchangeMarginMode {
+    Cross,
+    Isolated,
+}
+
 #[derive(Debug, Clone)]
 pub struct PlaceOrderRequest {
     pub symbol: String,
@@ -47,6 +54,7 @@ pub struct PlaceOrderRequest {
     pub quantity: f64,
     pub price: Option<f64>,
     pub reduce_only: bool,
+    pub margin_mode: Option<ExchangeMarginMode>,
     pub position_side: Option<PositionSide>,
     pub time_in_force: Option<TimeInForce>,
     pub client_order_id: Option<String>,

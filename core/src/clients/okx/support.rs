@@ -281,6 +281,13 @@ pub(super) fn okx_pos_side(side: PositionSide) -> &'static str {
     }
 }
 
+pub(super) fn okx_td_mode(mode: ExchangeMarginMode) -> &'static str {
+    match mode {
+        ExchangeMarginMode::Cross => "cross",
+        ExchangeMarginMode::Isolated => "isolated",
+    }
+}
+
 pub(super) fn okx_position_mode(pos_mode: &str) -> OkxPositionMode {
     match pos_mode.trim().to_ascii_lowercase().as_str() {
         "long_short_mode" => OkxPositionMode::LongShort,

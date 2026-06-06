@@ -10,10 +10,10 @@ use uuid::Uuid;
 use crate::{
     clients::{
         exchanges::{
-            CancelOrderResponse, ExchangeBalance, ExchangeCredentials, ExchangeOpenOrder,
-            ExchangeOrderDetail, ExchangeOrderType, ExchangePosition, ExchangeSide,
-            ExchangeSymbolConstraints, ExchangeTradeFill, LiveExchangeAdapter, PlaceOrderRequest,
-            PlaceOrderResponse, PositionSide, TimeInForce,
+            CancelOrderResponse, ExchangeBalance, ExchangeCredentials, ExchangeMarginMode,
+            ExchangeOpenOrder, ExchangeOrderDetail, ExchangeOrderType, ExchangePosition,
+            ExchangeSide, ExchangeSymbolConstraints, ExchangeTradeFill, LiveExchangeAdapter,
+            PlaceOrderRequest, PlaceOrderResponse, PositionSide, TimeInForce,
         },
         outbound_http::{OutboundRequestLog, OutboundResponse, send_text},
     },
@@ -207,6 +207,13 @@ impl BinanceFuturesAdapter {
 
         parse_json_response(resp)
     }
+
+    async fn dual_side_position(&self) -> Result<bool, AppError> {
+        let payload: BinancePositionModeResponse = self
+            .signed_get("/fapi/v1/positionSide/dual", vec![])
+            .await?;
+        Ok(payload.dual_side_position)
+    }
 }
 
 #[async_trait]
@@ -244,6 +251,7 @@ impl LiveExchangeAdapter for BinanceFuturesAdapter {
             ));
         }
 
+        let hedge_mode = self.dual_side_position().await?;
         let mut params = vec![
             ("symbol", symbol),
             (
@@ -266,22 +274,29 @@ impl LiveExchangeAdapter for BinanceFuturesAdapter {
                 req.client_order_id
                     .unwrap_or_else(|| format!("amaryllis_{}", Uuid::now_v7().simple())),
             ),
-            (
-                "reduceOnly",
-                if req.reduce_only { "true" } else { "false" }.to_string(),
-            ),
         ];
 
-        if let Some(ps) = req.position_side {
-            params.push((
-                "positionSide",
-                match ps {
-                    PositionSide::Both => "BOTH",
-                    PositionSide::Long => "LONG",
-                    PositionSide::Short => "SHORT",
-                }
-                .to_string(),
-            ));
+        if hedge_mode {
+            let ps = req
+                .position_side
+                .unwrap_or_else(|| inferred_position_side_for_order(req.side, req.reduce_only));
+            if !matches!(ps, PositionSide::Both) {
+                params.push((
+                    "positionSide",
+                    match ps {
+                        PositionSide::Both => "BOTH",
+                        PositionSide::Long => "LONG",
+                        PositionSide::Short => "SHORT",
+                    }
+                    .to_string(),
+                ));
+            }
+        } else if req.reduce_only {
+            params.push(("reduceOnly", "true".to_string()));
+        }
+
+        if !hedge_mode && matches!(req.position_side, Some(PositionSide::Both)) {
+            params.push(("positionSide", "BOTH".to_string()));
         }
 
         if let ExchangeOrderType::Limit = req.order_type {
@@ -614,6 +629,48 @@ impl LiveExchangeAdapter for BinanceFuturesAdapter {
         })
     }
 
+    async fn ensure_symbol_settings(
+        &self,
+        symbol: &str,
+        leverage: i64,
+        margin_mode: ExchangeMarginMode,
+    ) -> Result<(), AppError> {
+        let symbol = symbol.trim().to_uppercase();
+        if symbol.is_empty() {
+            return Err(AppError::InvalidExchangeConfig(
+                "symbol is required".to_string(),
+            ));
+        }
+        let leverage = leverage.clamp(1, 125);
+        let margin_type = match margin_mode {
+            ExchangeMarginMode::Cross => "CROSSED",
+            ExchangeMarginMode::Isolated => "ISOLATED",
+        };
+
+        let margin_result: Result<serde_json::Value, AppError> = self
+            .signed_post(
+                "/fapi/v1/marginType",
+                vec![
+                    ("symbol", symbol.clone()),
+                    ("marginType", margin_type.to_string()),
+                ],
+            )
+            .await;
+        match margin_result {
+            Ok(_) => {}
+            Err(err) if is_binance_margin_type_noop(&err) => {}
+            Err(err) => return Err(err),
+        }
+
+        let _: serde_json::Value = self
+            .signed_post(
+                "/fapi/v1/leverage",
+                vec![("symbol", symbol), ("leverage", leverage.to_string())],
+            )
+            .await?;
+        Ok(())
+    }
+
     async fn start_user_stream(&self) -> Result<String, AppError> {
         let payload = self.user_stream_request(Method::POST, None).await?;
         let listen_key = payload
@@ -763,6 +820,12 @@ struct BinancePositionRiskRow {
     position_side: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct BinancePositionModeResponse {
+    #[serde(rename = "dualSidePosition", default)]
+    dual_side_position: bool,
+}
+
 fn parse_json_response<T: for<'de> Deserialize<'de>>(
     resp: OutboundResponse,
 ) -> Result<T, AppError> {
@@ -845,4 +908,20 @@ fn format_decimal(v: f64) -> String {
 
 fn parse_f64(v: &str) -> f64 {
     v.parse::<f64>().unwrap_or(0.0)
+}
+
+fn inferred_position_side_for_order(side: ExchangeSide, reduce_only: bool) -> PositionSide {
+    match (side, reduce_only) {
+        (ExchangeSide::Sell, false) | (ExchangeSide::Buy, true) => PositionSide::Short,
+        _ => PositionSide::Long,
+    }
+}
+
+fn is_binance_margin_type_noop(err: &AppError) -> bool {
+    matches!(err, AppError::ExchangeApi { code: -4046, .. })
+        || matches!(
+            err,
+            AppError::ExchangeApi { message, .. }
+                if message.to_ascii_lowercase().contains("no need to change margin type")
+        )
 }
