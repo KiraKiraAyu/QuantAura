@@ -48,6 +48,30 @@ export function useDashboardPage() {
     )
   }
 
+  function actionErrorMessage(error: unknown) {
+    const err = error as {
+      response?: { data?: { error?: string }; status?: number }
+      message?: string
+    }
+    const statusMsg = err?.response?.status
+      ? `Request failed (${err.response.status})`
+      : ""
+    return err?.response?.data?.error || statusMsg || err?.message || "Action failed"
+  }
+
+  async function runActionAndReload(action: () => Promise<unknown>) {
+    let actionError: unknown = null
+    try {
+      await action()
+    } catch (error: unknown) {
+      actionError = error
+    }
+    await loadAll()
+    if (actionError) {
+      loadError.value = actionErrorMessage(actionError)
+    }
+  }
+
   async function loadEquityHistory(traderId: string) {
     try {
       const points = await getEquityHistoryApi({ trader_id: traderId })
@@ -110,31 +134,21 @@ export function useDashboardPage() {
   }
 
   async function startTrader(id: string) {
-    await startTraderApi(id).catch(() => {})
-    await loadAll()
+    await runActionAndReload(() => startTraderApi(id))
   }
 
   async function stopTrader(id: string) {
-    await stopTraderApi(id).catch(() => {})
-    await loadAll()
+    await runActionAndReload(() => stopTraderApi(id))
   }
 
   async function syncBalance(id: string) {
-    await syncTraderBalanceApi(id).catch(() => {})
-    await loadAll()
+    await runActionAndReload(() => syncTraderBalanceApi(id))
   }
 
   async function closePosition(traderId: string, symbol: string, side: string) {
     if (!confirm(`Close ${symbol} position?`)) return
-    await closeTraderPositionApi(traderId, { symbol, side }).catch(() => {})
-    realtime.removePosition(traderId, symbol, side)
-    positions.value = positions.value.filter(
-      (position) =>
-        !(
-          position.trader_id === traderId &&
-          position.symbol === symbol &&
-          position.side === side
-        ),
+    await runActionAndReload(() =>
+      closeTraderPositionApi(traderId, { symbol, side }),
     )
   }
 

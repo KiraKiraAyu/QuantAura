@@ -91,27 +91,17 @@ pub async fn load_runtime_execution_context(
     let wallet_addr = row.hyperliquid_wallet_addr;
     let testnet = row.testnet;
 
-    let credentials_missing = match row.exchange_type.trim().to_ascii_lowercase().as_str() {
-        "hyperliquid" => wallet_addr.trim().is_empty() || secret_key.trim().is_empty(),
-        "okx" | "bitget" => {
-            api_key.trim().is_empty()
-                || secret_key.trim().is_empty()
-                || passphrase_raw.trim().is_empty()
-        }
-        _ => api_key.trim().is_empty() || secret_key.trim().is_empty(),
-    };
-
-    if credentials_missing {
-        warn!(
-            "exchange credentials missing for trader={}, fallback to simulated mode",
+    if exchange_credentials_missing(
+        &row.exchange_type,
+        &api_key,
+        &secret_key,
+        &passphrase_raw,
+        &wallet_addr,
+    ) {
+        return Err(AppError::InvalidExchangeConfig(format!(
+            "enabled exchange credentials are incomplete for trader={}",
             cfg.trader_id
-        );
-        return Ok((
-            RuntimeExecutionContext {
-                mode: RuntimeExecutionMode::Simulated,
-            },
-            None,
-        ));
+        )));
     }
 
     let credentials = ExchangeCredentials {
@@ -131,25 +121,36 @@ pub async fn load_runtime_execution_context(
     };
 
     let adapter = create_exchange_adapter(&row.exchange_type, credentials)?;
-    match adapter.ping().await {
-        Ok(_) => Ok((
-            RuntimeExecutionContext {
-                mode: RuntimeExecutionMode::LiveExchange,
-            },
-            Some(adapter),
-        )),
-        Err(err) => {
-            warn!(
-                "exchange ping failed for trader={}, fallback to simulated mode: {}",
-                cfg.trader_id, err
-            );
-            Ok((
-                RuntimeExecutionContext {
-                    mode: RuntimeExecutionMode::Simulated,
-                },
-                None,
-            ))
+    if let Err(err) = adapter.ping().await {
+        return Err(AppError::BadGateway(format!(
+            "enabled exchange ping failed for trader={}: {}",
+            cfg.trader_id, err
+        )));
+    }
+
+    Ok((
+        RuntimeExecutionContext {
+            mode: RuntimeExecutionMode::LiveExchange,
+        },
+        Some(adapter),
+    ))
+}
+
+pub fn exchange_credentials_missing(
+    exchange_type: &str,
+    api_key: &str,
+    secret_key: &str,
+    passphrase: &str,
+    wallet_addr: &str,
+) -> bool {
+    match exchange_type.trim().to_ascii_lowercase().as_str() {
+        "hyperliquid" => wallet_addr.trim().is_empty() || secret_key.trim().is_empty(),
+        "okx" | "bitget" => {
+            api_key.trim().is_empty()
+                || secret_key.trim().is_empty()
+                || passphrase.trim().is_empty()
         }
+        _ => api_key.trim().is_empty() || secret_key.trim().is_empty(),
     }
 }
 
@@ -233,4 +234,41 @@ pub fn now_u64() -> u64 {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn exchange_credentials_missing_matches_exchange_requirements() {
+        assert!(exchange_credentials_missing("okx", "key", "secret", "", ""));
+        assert!(!exchange_credentials_missing(
+            "bitget",
+            "key",
+            "secret",
+            "passphrase",
+            ""
+        ));
+        assert!(exchange_credentials_missing(
+            "hyperliquid",
+            "",
+            "private-key",
+            "",
+            ""
+        ));
+        assert!(!exchange_credentials_missing(
+            "hyperliquid",
+            "",
+            "private-key",
+            "",
+            "0xabc"
+        ));
+        assert!(exchange_credentials_missing(
+            "binance", "", "secret", "", ""
+        ));
+        assert!(!exchange_credentials_missing(
+            "aster", "key", "secret", "", ""
+        ));
+    }
 }

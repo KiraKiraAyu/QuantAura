@@ -48,6 +48,7 @@ export interface ToggleCompetitionRequest {
 export interface ClosePositionRequest {
   symbol: string
   side: string
+  local_only?: boolean
 }
 
 export interface TraderQuery {
@@ -201,11 +202,14 @@ export interface TraderAccountPayload {
 
 export interface TraderBalanceSyncPayload {
   message: string
+  mode: string
   account: TraderAccountPayload
 }
 
 export interface ClosePositionPayload {
   message: string
+  mode: string
+  order_id: string
   symbol: string
   side: string
 }

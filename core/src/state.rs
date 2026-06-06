@@ -173,6 +173,7 @@ impl Services {
         ));
         let trading_service = Arc::new(TradingService::new(
             trading_repo,
+            exchange_repo.clone(),
             config.runtime_alerts.clone(),
             runtime_engine_manager,
             llm_service.clone(),

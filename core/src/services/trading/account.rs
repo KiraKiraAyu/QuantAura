@@ -13,6 +13,56 @@ pub async fn sync_balance(
         }
     };
 
+    if let Some(adapter) = enabled_live_adapter(app, &trader).await? {
+        let balances = adapter.get_balances().await?;
+        let balance = balances
+            .iter()
+            .find(|row| row.asset.eq_ignore_ascii_case("USDT"))
+            .or_else(|| balances.first())
+            .ok_or_else(|| {
+                app_error(
+                    AppErrorKind::BadGateway,
+                    "Exchange returned no account balance",
+                )
+            })?;
+        let total_balance = balance.wallet_balance.max(0.0);
+        let available_balance = balance.available_balance.max(0.0);
+        let now = now_ts();
+        let account = TraderAccountRecord {
+            trader_id: id.to_string(),
+            total_balance,
+            available_balance,
+            used_margin: (total_balance - available_balance).max(0.0),
+            unrealized_pnl: balance.unrealized_pnl,
+            realized_pnl: 0.0,
+            currency: balance.asset.trim().to_uppercase(),
+            snapshot_at: now,
+        };
+
+        app.trading_repo
+            .insert_account_snapshot(
+                Uuid::now_v7().to_string(),
+                user_id,
+                id,
+                &trader.exchange_id,
+                &account,
+                now,
+            )
+            .await
+            .map_err(|_| {
+                app_error(
+                    AppErrorKind::Internal,
+                    "Failed to persist live balance snapshot",
+                )
+            })?;
+
+        return Ok(TraderBalanceSyncPayload {
+            message: "Live balance synced",
+            mode: "live".to_string(),
+            account: account_payload(id.to_string(), account),
+        });
+    }
+
     let account = match app.trading_repo.latest_account(user_id, id).await {
         Ok(Some(account)) => account,
         Ok(None) => TraderAccountRecord {
@@ -40,6 +90,7 @@ pub async fn sync_balance(
     match result {
         Ok(_) => Ok(TraderBalanceSyncPayload {
             message: "Balance synced",
+            mode: "local".to_string(),
             account: account_payload(id.to_string(), account.with_snapshot_at(now)),
         }),
         Err(_) => Err(app_error(
@@ -51,6 +102,7 @@ pub async fn sync_balance(
 
 pub async fn close_position(
     app: &SharedState,
+    runtime: &TradingRuntimeService,
     user_id: &str,
     id: &str,
     req: ClosePositionRequest,
@@ -64,24 +116,53 @@ pub async fn close_position(
         ));
     }
 
-    if trader_owner_missing(app, user_id, id).await {
-        return Err(app_error(
-            AppErrorKind::NotFound,
-            "Trader does not exist or no permission",
-        ));
-    }
+    let trader = match get_trader_by_owner(app, user_id, id).await {
+        Ok(Some(t)) => t,
+        Ok(None) => {
+            return Err(app_error(
+                AppErrorKind::NotFound,
+                "Trader does not exist or no permission",
+            ));
+        }
+        Err(_) => {
+            return Err(app_error(AppErrorKind::Internal, "Failed to load trader"));
+        }
+    };
 
     let open_positions = app
         .trading_repo
         .open_position_records(user_id, id, Some(&symbol), Some(&side))
         .await;
-    let position_count = match open_positions {
-        Ok(v) if !v.is_empty() => v.len(),
+    let open_positions = match open_positions {
+        Ok(v) if !v.is_empty() => v,
         Ok(_) => return Err(app_error(AppErrorKind::NotFound, "No open position found")),
         Err(_) => {
             return Err(app_error(AppErrorKind::Internal, "Failed to load position"));
         }
     };
+    let position_count = open_positions.len();
+
+    if !req.local_only {
+        if let Some(adapter) = enabled_live_adapter(app, &trader).await? {
+            let order_id = submit_live_close_order(
+                &runtime.inner.state,
+                &trader,
+                adapter.as_ref(),
+                &symbol,
+                &side,
+                &open_positions,
+            )
+            .await?;
+
+            return Ok(ClosePositionPayload {
+                message: "Close order submitted",
+                mode: "live".to_string(),
+                order_id,
+                symbol,
+                side,
+            });
+        }
+    }
 
     let trade_ids = (0..position_count)
         .map(|_| Uuid::now_v7().to_string())
@@ -94,6 +175,8 @@ pub async fn close_position(
     match closed {
         Ok(_) => Ok(ClosePositionPayload {
             message: "Position closed",
+            mode: "local".to_string(),
+            order_id: String::new(),
             symbol,
             side,
         }),
@@ -101,6 +184,143 @@ pub async fn close_position(
             AppErrorKind::Internal,
             "Failed to close position",
         )),
+    }
+}
+
+async fn enabled_live_adapter(
+    app: &SharedState,
+    trader: &TraderRecord,
+) -> AppResult<Option<Box<dyn LiveExchangeAdapter>>> {
+    let Some(row) = app
+        .exchange_repo
+        .find_runtime_config(&trader.exchange_id, &trader.user_id)
+        .await
+        .map_err(|_| app_error(AppErrorKind::Internal, "Failed to load exchange config"))?
+    else {
+        return Ok(None);
+    };
+
+    if !row.enabled {
+        return Ok(None);
+    }
+
+    if exchange_credentials_missing(
+        &row.exchange_type,
+        &row.api_key,
+        &row.secret_key,
+        &row.passphrase,
+        &row.hyperliquid_wallet_addr,
+    ) {
+        return Err(AppError::InvalidExchangeConfig(
+            "enabled exchange credentials are incomplete".to_string(),
+        ));
+    }
+
+    let credentials = ExchangeCredentials {
+        api_key: row.api_key,
+        secret_key: row.secret_key,
+        passphrase: if row.passphrase.trim().is_empty() {
+            None
+        } else {
+            Some(row.passphrase)
+        },
+        wallet_addr: if row.hyperliquid_wallet_addr.trim().is_empty() {
+            None
+        } else {
+            Some(row.hyperliquid_wallet_addr)
+        },
+        testnet: row.testnet,
+    };
+
+    let adapter = create_exchange_adapter(&row.exchange_type, credentials)?;
+    adapter.ping().await?;
+
+    Ok(Some(adapter))
+}
+
+async fn submit_live_close_order(
+    runtime_state: &crate::services::trading_runtime::models::SharedState,
+    trader: &TraderRecord,
+    adapter: &dyn LiveExchangeAdapter,
+    symbol: &str,
+    side: &str,
+    open_positions: &[TraderPositionRecord],
+) -> AppResult<String> {
+    let raw_qty = open_positions
+        .iter()
+        .map(|position| position.quantity.abs())
+        .sum::<f64>();
+    let constraints = adapter.get_symbol_constraints(symbol).await?;
+    let quantity = normalize_order_quantity_by_constraints(raw_qty, &constraints);
+    if quantity <= f64::EPSILON {
+        return Err(app_error(
+            AppErrorKind::BadRequest,
+            "Position quantity is below exchange minimum",
+        ));
+    }
+
+    let close_side = close_order_side(side)?;
+    let position_side = order_position_side(side)?;
+    let order = adapter
+        .place_order(PlaceOrderRequest {
+            symbol: symbol.to_string(),
+            side: close_side,
+            order_type: ExchangeOrderType::Market,
+            quantity,
+            price: None,
+            reduce_only: true,
+            position_side: Some(position_side),
+            time_in_force: None,
+            client_order_id: Some(format!("manual_{}", Uuid::now_v7().simple())),
+        })
+        .await?;
+
+    let cfg = manual_runtime_config(trader);
+    persist_live_order_record(runtime_state, &cfg, adapter, &order, side, true, now_ts()).await?;
+    Ok(order.order_id)
+}
+
+fn close_order_side(side: &str) -> AppResult<ExchangeSide> {
+    match side.trim().to_ascii_uppercase().as_str() {
+        "LONG" => Ok(ExchangeSide::Sell),
+        "SHORT" => Ok(ExchangeSide::Buy),
+        _ => Err(app_error(
+            AppErrorKind::BadRequest,
+            "side must be LONG or SHORT",
+        )),
+    }
+}
+
+fn order_position_side(side: &str) -> AppResult<PositionSide> {
+    match side.trim().to_ascii_uppercase().as_str() {
+        "LONG" => Ok(PositionSide::Long),
+        "SHORT" => Ok(PositionSide::Short),
+        _ => Err(app_error(
+            AppErrorKind::BadRequest,
+            "side must be LONG or SHORT",
+        )),
+    }
+}
+
+fn manual_runtime_config(trader: &TraderRecord) -> TraderRuntimeConfig {
+    TraderRuntimeConfig {
+        trader_id: trader.id.clone(),
+        user_id: trader.user_id.clone(),
+        name: trader.name.clone(),
+        ai_model_id: trader.ai_model_id.clone(),
+        ai_model_name: String::new(),
+        ai_provider_type: String::new(),
+        ai_api_key: String::new(),
+        ai_base_url: String::new(),
+        exchange_id: trader.exchange_id.clone(),
+        scan_interval_minutes: trader.scan_interval_minutes,
+        initial_balance: trader.initial_balance,
+        btc_eth_leverage: trader.btc_eth_leverage,
+        altcoin_leverage: trader.altcoin_leverage,
+        trading_symbols: trader.trading_symbols.clone(),
+        custom_prompt: trader.custom_prompt.clone(),
+        override_base_prompt: trader.override_base_prompt != 0,
+        system_prompt_template: trader.system_prompt_template.clone(),
     }
 }
 
@@ -377,5 +597,29 @@ mod tests {
         assert_eq!(payload.opened_at, 1_700_000_000);
         assert_eq!(payload.closed_at, Some(1_700_000_600));
         assert_eq!(payload.updated_at, 1_700_000_900);
+    }
+
+    #[test]
+    fn live_close_order_side_inverts_position_side() {
+        assert!(matches!(
+            close_order_side("LONG").expect("long close side"),
+            ExchangeSide::Sell
+        ));
+        assert!(matches!(
+            close_order_side("SHORT").expect("short close side"),
+            ExchangeSide::Buy
+        ));
+    }
+
+    #[test]
+    fn live_close_position_side_preserves_target_position() {
+        assert!(matches!(
+            order_position_side("LONG").expect("long position side"),
+            PositionSide::Long
+        ));
+        assert!(matches!(
+            order_position_side("SHORT").expect("short position side"),
+            PositionSide::Short
+        ));
     }
 }
