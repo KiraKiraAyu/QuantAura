@@ -40,10 +40,6 @@ impl ExchangeConfigService {
                 enabled: row.enabled != 0,
                 testnet: row.testnet != 0,
                 hyperliquid_wallet_addr: row.hyperliquid_wallet_addr,
-                aster_user: row.aster_user,
-                aster_signer: row.aster_signer,
-                lighter_wallet_addr: row.lighter_wallet_addr,
-                lighter_api_key_index: row.lighter_api_key_index,
             })
             .collect())
     }
@@ -56,6 +52,11 @@ impl ExchangeConfigService {
         let exchange_type = request.exchange_type.trim().to_ascii_lowercase();
         if !is_supported_exchange_type(&exchange_type) {
             return Err(AppError::BadRequest("Invalid exchange type".into()));
+        }
+        if exchange_type == "aster" && request.testnet {
+            return Err(AppError::BadRequest(
+                "Aster testnet is not configured".into(),
+            ));
         }
 
         let account_name = if request.account_name.trim().is_empty() {
@@ -82,13 +83,6 @@ impl ExchangeConfigService {
                 passphrase: request.passphrase.trim().to_string(),
                 testnet: request.testnet,
                 hyperliquid_wallet_addr: request.hyperliquid_wallet_addr.trim().to_string(),
-                aster_user: request.aster_user.trim().to_string(),
-                aster_signer: request.aster_signer.trim().to_string(),
-                aster_private_key: request.aster_private_key.trim().to_string(),
-                lighter_wallet_addr: request.lighter_wallet_addr.trim().to_string(),
-                lighter_private_key: request.lighter_private_key.trim().to_string(),
-                lighter_api_key_private_key: request.lighter_api_key_private_key.trim().to_string(),
-                lighter_api_key_index: request.lighter_api_key_index,
                 created_at: now,
                 updated_at: now,
             })
@@ -134,22 +128,6 @@ impl ExchangeConfigService {
                         passphrase: keep_or_new(existing.passphrase, &patch.passphrase),
                         testnet: patch.testnet,
                         hyperliquid_wallet_addr: patch.hyperliquid_wallet_addr.trim().to_string(),
-                        aster_user: patch.aster_user.trim().to_string(),
-                        aster_signer: patch.aster_signer.trim().to_string(),
-                        aster_private_key: keep_or_new(
-                            existing.aster_private_key,
-                            &patch.aster_private_key,
-                        ),
-                        lighter_wallet_addr: patch.lighter_wallet_addr.trim().to_string(),
-                        lighter_private_key: keep_or_new(
-                            existing.lighter_private_key,
-                            &patch.lighter_private_key,
-                        ),
-                        lighter_api_key_private_key: keep_or_new(
-                            existing.lighter_api_key_private_key,
-                            &patch.lighter_api_key_private_key,
-                        ),
-                        lighter_api_key_index: patch.lighter_api_key_index,
                         updated_at: now,
                     },
                 )
@@ -222,29 +200,39 @@ fn keep_or_new(existing: String, incoming: &str) -> String {
 fn is_supported_exchange_type(exchange_type: &str) -> bool {
     matches!(
         exchange_type,
-        "binance"
-            | "bybit"
-            | "okx"
-            | "bitget"
-            | "kucoin"
-            | "gate"
-            | "hyperliquid"
-            | "aster"
-            | "lighter"
+        "binance" | "okx" | "bitget" | "hyperliquid" | "aster"
     )
 }
 
 fn exchange_name_and_type(exchange_type: &str) -> (&'static str, &'static str) {
     match exchange_type {
         "binance" => ("Binance Futures", "cex"),
-        "bybit" => ("Bybit Futures", "cex"),
         "okx" => ("OKX Futures", "cex"),
         "bitget" => ("Bitget Futures", "cex"),
-        "kucoin" => ("KuCoin Futures", "cex"),
-        "gate" => ("Gate.io Futures", "cex"),
         "hyperliquid" => ("Hyperliquid", "dex"),
         "aster" => ("Aster DEX", "dex"),
-        "lighter" => ("Lighter", "dex"),
         _ => ("Unknown Exchange", "cex"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn exchange_type_support_is_limited_to_current_targets() {
+        for exchange_type in ["binance", "okx", "bitget", "hyperliquid", "aster"] {
+            assert!(
+                is_supported_exchange_type(exchange_type),
+                "{exchange_type} should be supported"
+            );
+        }
+
+        for exchange_type in ["bybit", "kucoin", "gate", "lighter"] {
+            assert!(
+                !is_supported_exchange_type(exchange_type),
+                "{exchange_type} should not be supported"
+            );
+        }
     }
 }

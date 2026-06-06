@@ -1,6 +1,12 @@
 use async_trait::async_trait;
 
-use crate::{clients::binance::BinanceFuturesAdapter, error::AppError};
+use crate::{
+    clients::{
+        binance::BinanceFuturesAdapter, bitget::BitgetFuturesAdapter,
+        hyperliquid::HyperliquidAdapter, okx::OkxFuturesAdapter,
+    },
+    error::AppError,
+};
 
 use super::types::{
     CancelOrderResponse, ExchangeBalance, ExchangeCredentials, ExchangeOpenOrder,
@@ -52,6 +58,10 @@ pub fn create_exchange_adapter(
 ) -> Result<Box<dyn LiveExchangeAdapter>, AppError> {
     match exchange_type.to_ascii_lowercase().as_str() {
         "binance" => Ok(Box::new(BinanceFuturesAdapter::new(credentials)?)),
+        "aster" => Ok(Box::new(BinanceFuturesAdapter::new_aster(credentials)?)),
+        "okx" => Ok(Box::new(OkxFuturesAdapter::new(credentials)?)),
+        "bitget" => Ok(Box::new(BitgetFuturesAdapter::new(credentials)?)),
+        "hyperliquid" => Ok(Box::new(HyperliquidAdapter::new(credentials)?)),
         other => Err(AppError::UnsupportedExchange(other.to_string())),
     }
 }

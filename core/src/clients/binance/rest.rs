@@ -25,35 +25,79 @@ type HmacSha256 = Hmac<Sha256>;
 #[derive(Debug, Clone)]
 pub struct BinanceFuturesAdapter {
     client: Client,
+    exchange_type: &'static str,
     api_key: String,
     secret_key: String,
     base_url: String,
+    ws_base_url: String,
 }
 
 impl BinanceFuturesAdapter {
     pub fn new(credentials: ExchangeCredentials) -> Result<Self, AppError> {
-        if credentials.api_key.trim().is_empty() {
+        Self::new_with_config(
+            "binance",
+            credentials,
+            "https://fapi.binance.com",
+            "https://testnet.binancefuture.com",
+            "wss://fstream.binance.com",
+            "wss://stream.binancefuture.com",
+        )
+    }
+
+    pub fn new_aster(credentials: ExchangeCredentials) -> Result<Self, AppError> {
+        if credentials.testnet {
             return Err(AppError::InvalidExchangeConfig(
-                "binance api_key is required".to_string(),
-            ));
-        }
-        if credentials.secret_key.trim().is_empty() {
-            return Err(AppError::InvalidExchangeConfig(
-                "binance secret_key is required".to_string(),
+                "aster testnet endpoint is not configured".to_string(),
             ));
         }
 
+        Self::new_with_config(
+            "aster",
+            credentials,
+            "https://fapi.asterdex.com",
+            "https://fapi.asterdex.com",
+            "wss://fstream.asterdex.com",
+            "wss://fstream.asterdex.com",
+        )
+    }
+
+    fn new_with_config(
+        exchange_type: &'static str,
+        credentials: ExchangeCredentials,
+        live_base_url: &str,
+        testnet_base_url: &str,
+        live_ws_base_url: &str,
+        testnet_ws_base_url: &str,
+    ) -> Result<Self, AppError> {
+        if credentials.api_key.trim().is_empty() {
+            return Err(AppError::InvalidExchangeConfig(format!(
+                "{exchange_type} api_key is required"
+            )));
+        }
+        if credentials.secret_key.trim().is_empty() {
+            return Err(AppError::InvalidExchangeConfig(format!(
+                "{exchange_type} secret_key is required"
+            )));
+        }
+
         let base_url = if credentials.testnet {
-            "https://testnet.binancefuture.com".to_string()
+            testnet_base_url.to_string()
         } else {
-            "https://fapi.binance.com".to_string()
+            live_base_url.to_string()
+        };
+        let ws_base_url = if credentials.testnet {
+            testnet_ws_base_url.to_string()
+        } else {
+            live_ws_base_url.to_string()
         };
 
         Ok(Self {
             client: Client::builder().build().map_err(AppError::ExchangeHttp)?,
+            exchange_type,
             api_key: credentials.api_key,
             secret_key: credentials.secret_key,
             base_url,
+            ws_base_url,
         })
     }
 
@@ -168,7 +212,7 @@ impl BinanceFuturesAdapter {
 #[async_trait]
 impl LiveExchangeAdapter for BinanceFuturesAdapter {
     fn exchange_type(&self) -> &'static str {
-        "binance"
+        self.exchange_type
     }
 
     async fn ping(&self) -> Result<(), AppError> {
@@ -606,13 +650,7 @@ impl LiveExchangeAdapter for BinanceFuturesAdapter {
             ));
         }
 
-        let ws_base = if self.base_url.contains("testnet.binancefuture.com") {
-            "wss://stream.binancefuture.com"
-        } else {
-            "wss://fstream.binance.com"
-        };
-
-        Ok(format!("{}/ws/{}", ws_base, key))
+        Ok(format!("{}/ws/{}", self.ws_base_url, key))
     }
 }
 

@@ -107,7 +107,7 @@ pub struct TraderRuntimeConfig {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RuntimeExecutionMode {
     Simulated,
-    LiveBinance,
+    LiveExchange,
 }
 
 #[derive(Debug, Clone)]

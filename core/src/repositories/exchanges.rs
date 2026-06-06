@@ -20,19 +20,12 @@ pub struct ExchangeConfigRecord {
     pub enabled: i64,
     pub testnet: i64,
     pub hyperliquid_wallet_addr: String,
-    pub aster_user: String,
-    pub aster_signer: String,
-    pub lighter_wallet_addr: String,
-    pub lighter_api_key_index: i64,
 }
 
 pub struct ExchangeSecretRecord {
     pub api_key: String,
     pub secret_key: String,
     pub passphrase: String,
-    pub aster_private_key: String,
-    pub lighter_private_key: String,
-    pub lighter_api_key_private_key: String,
 }
 
 #[derive(Debug, Clone)]
@@ -43,6 +36,7 @@ pub struct ExchangeRuntimeRecord {
     pub secret_key: String,
     pub passphrase: String,
     pub testnet: bool,
+    pub hyperliquid_wallet_addr: String,
 }
 
 pub struct TraderUsageRecord {
@@ -64,13 +58,6 @@ pub struct CreateExchangeAccount {
     pub passphrase: String,
     pub testnet: bool,
     pub hyperliquid_wallet_addr: String,
-    pub aster_user: String,
-    pub aster_signer: String,
-    pub aster_private_key: String,
-    pub lighter_wallet_addr: String,
-    pub lighter_private_key: String,
-    pub lighter_api_key_private_key: String,
-    pub lighter_api_key_index: i64,
     pub created_at: i64,
     pub updated_at: i64,
 }
@@ -83,13 +70,6 @@ pub struct UpdateExchangeAccount {
     pub passphrase: String,
     pub testnet: bool,
     pub hyperliquid_wallet_addr: String,
-    pub aster_user: String,
-    pub aster_signer: String,
-    pub aster_private_key: String,
-    pub lighter_wallet_addr: String,
-    pub lighter_private_key: String,
-    pub lighter_api_key_private_key: String,
-    pub lighter_api_key_index: i64,
     pub updated_at: i64,
 }
 
@@ -119,10 +99,6 @@ impl ExchangeRepo {
                         enabled: i64::from(row.enabled),
                         testnet: i64::from(row.testnet),
                         hyperliquid_wallet_addr: row.hyperliquid_wallet_addr,
-                        aster_user: row.aster_user,
-                        aster_signer: row.aster_signer,
-                        lighter_wallet_addr: row.lighter_wallet_addr,
-                        lighter_api_key_index: i64::from(row.lighter_api_key_index),
                     })
                     .collect()
             })
@@ -145,13 +121,6 @@ impl ExchangeRepo {
             passphrase: Set(account.passphrase),
             testnet: Set(if account.testnet { 1 } else { 0 }),
             hyperliquid_wallet_addr: Set(account.hyperliquid_wallet_addr),
-            aster_user: Set(account.aster_user),
-            aster_signer: Set(account.aster_signer),
-            aster_private_key: Set(account.aster_private_key),
-            lighter_wallet_addr: Set(account.lighter_wallet_addr),
-            lighter_private_key: Set(account.lighter_private_key),
-            lighter_api_key_private_key: Set(account.lighter_api_key_private_key),
-            lighter_api_key_index: Set(account.lighter_api_key_index as i32),
             created_at: Set(ts_to_dt(account.created_at)),
             updated_at: Set(ts_to_dt(account.updated_at)),
         }
@@ -175,9 +144,6 @@ impl ExchangeRepo {
                     api_key: row.api_key,
                     secret_key: row.secret_key,
                     passphrase: row.passphrase,
-                    aster_private_key: row.aster_private_key,
-                    lighter_private_key: row.lighter_private_key,
-                    lighter_api_key_private_key: row.lighter_api_key_private_key,
                 })
             })
     }
@@ -199,6 +165,7 @@ impl ExchangeRepo {
                     secret_key: row.secret_key,
                     passphrase: row.passphrase,
                     testnet: row.testnet != 0,
+                    hyperliquid_wallet_addr: row.hyperliquid_wallet_addr,
                 })
             })
     }
@@ -227,31 +194,6 @@ impl ExchangeRepo {
             .col_expr(
                 exchanges::Column::HyperliquidWalletAddr,
                 Expr::value(update.hyperliquid_wallet_addr),
-            )
-            .col_expr(exchanges::Column::AsterUser, Expr::value(update.aster_user))
-            .col_expr(
-                exchanges::Column::AsterSigner,
-                Expr::value(update.aster_signer),
-            )
-            .col_expr(
-                exchanges::Column::AsterPrivateKey,
-                Expr::value(update.aster_private_key),
-            )
-            .col_expr(
-                exchanges::Column::LighterWalletAddr,
-                Expr::value(update.lighter_wallet_addr),
-            )
-            .col_expr(
-                exchanges::Column::LighterPrivateKey,
-                Expr::value(update.lighter_private_key),
-            )
-            .col_expr(
-                exchanges::Column::LighterApiKeyPrivateKey,
-                Expr::value(update.lighter_api_key_private_key),
-            )
-            .col_expr(
-                exchanges::Column::LighterApiKeyIndex,
-                Expr::value(update.lighter_api_key_index as i32),
             )
             .col_expr(
                 exchanges::Column::UpdatedAt,

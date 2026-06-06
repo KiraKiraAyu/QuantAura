@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue"
+import { computed, onMounted, ref, watch } from "vue"
 import { Icon } from "@iconify/vue"
 import BaseButton from "@/components/universal/BaseButton.vue"
 import BaseInput from "@/components/universal/BaseInput.vue"
@@ -22,6 +22,14 @@ const newEx = ref<CreateExchangeRequest>({
   secret_key: "",
   testnet: true,
 })
+const requiresPassphrase = computed(() =>
+  ["okx", "bitget"].includes(newEx.value.exchange_type),
+)
+const isHyperliquid = computed(
+  () => newEx.value.exchange_type === "hyperliquid",
+)
+const usesApiCredentials = computed(() => !isHyperliquid.value)
+const supportsTestnet = computed(() => newEx.value.exchange_type !== "aster")
 
 async function addExchange() {
   addingEx.value = true
@@ -44,6 +52,21 @@ async function loadSupportedExchanges() {
 }
 
 onMounted(loadSupportedExchanges)
+
+watch(
+  () => newEx.value.exchange_type,
+  (exchangeType) => {
+    newEx.value.api_key = ""
+    newEx.value.secret_key = ""
+    newEx.value.passphrase = ""
+    newEx.value.hyperliquid_wallet_addr = ""
+    if (exchangeType === "aster") {
+      newEx.value.testnet = false
+    } else if (newEx.value.testnet == null) {
+      newEx.value.testnet = true
+    }
+  },
+)
 </script>
 
 <template>
@@ -69,11 +92,11 @@ onMounted(loadSupportedExchanges)
           <label>Account Name</label>
           <BaseInput v-model="newEx.account_name" placeholder="My Binance" />
         </div>
-        <div>
+        <div v-if="usesApiCredentials">
           <label>API Key</label>
           <BaseInput v-model="newEx.api_key" placeholder="api key…" />
         </div>
-        <div>
+        <div v-if="usesApiCredentials">
           <label>Secret Key</label>
           <BaseInput
             v-model="newEx.secret_key"
@@ -81,7 +104,33 @@ onMounted(loadSupportedExchanges)
             placeholder="secret…"
           />
         </div>
-        <label class="flex items-center gap-2 text-sm cursor-pointer">
+        <div v-if="requiresPassphrase">
+          <label>Passphrase</label>
+          <BaseInput
+            v-model="newEx.passphrase"
+            type="password"
+            placeholder="passphrase…"
+          />
+        </div>
+        <div v-if="isHyperliquid">
+          <label>Wallet Address</label>
+          <BaseInput
+            v-model="newEx.hyperliquid_wallet_addr"
+            placeholder="0x…"
+          />
+        </div>
+        <div v-if="isHyperliquid">
+          <label>Private Key</label>
+          <BaseInput
+            v-model="newEx.secret_key"
+            type="password"
+            placeholder="private key…"
+          />
+        </div>
+        <label
+          v-if="supportsTestnet"
+          class="flex items-center gap-2 text-sm cursor-pointer"
+        >
           <BaseInput v-model="newEx.testnet" type="checkbox" />
           <span>Use testnet</span>
         </label>

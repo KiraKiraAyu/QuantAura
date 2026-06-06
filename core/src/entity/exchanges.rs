@@ -28,19 +28,6 @@ pub struct Model {
     pub testnet: i32,
     #[sea_orm(column_type = "Text")]
     pub hyperliquid_wallet_addr: String,
-    #[sea_orm(column_type = "Text")]
-    pub aster_user: String,
-    #[sea_orm(column_type = "Text")]
-    pub aster_signer: String,
-    #[sea_orm(column_type = "Text")]
-    pub aster_private_key: String,
-    #[sea_orm(column_type = "Text")]
-    pub lighter_wallet_addr: String,
-    #[sea_orm(column_type = "Text")]
-    pub lighter_private_key: String,
-    #[sea_orm(column_type = "Text")]
-    pub lighter_api_key_private_key: String,
-    pub lighter_api_key_index: i32,
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
 }

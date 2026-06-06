@@ -85,21 +85,23 @@ pub async fn load_runtime_execution_context(
         ));
     }
 
-    if !row.exchange_type.eq_ignore_ascii_case("binance") {
-        return Ok((
-            RuntimeExecutionContext {
-                mode: RuntimeExecutionMode::Simulated,
-            },
-            None,
-        ));
-    }
-
     let api_key = row.api_key;
     let secret_key = row.secret_key;
     let passphrase_raw = row.passphrase;
+    let wallet_addr = row.hyperliquid_wallet_addr;
     let testnet = row.testnet;
 
-    if api_key.trim().is_empty() || secret_key.trim().is_empty() {
+    let credentials_missing = match row.exchange_type.trim().to_ascii_lowercase().as_str() {
+        "hyperliquid" => wallet_addr.trim().is_empty() || secret_key.trim().is_empty(),
+        "okx" | "bitget" => {
+            api_key.trim().is_empty()
+                || secret_key.trim().is_empty()
+                || passphrase_raw.trim().is_empty()
+        }
+        _ => api_key.trim().is_empty() || secret_key.trim().is_empty(),
+    };
+
+    if credentials_missing {
         warn!(
             "exchange credentials missing for trader={}, fallback to simulated mode",
             cfg.trader_id
@@ -120,20 +122,25 @@ pub async fn load_runtime_execution_context(
         } else {
             Some(passphrase_raw)
         },
+        wallet_addr: if wallet_addr.trim().is_empty() {
+            None
+        } else {
+            Some(wallet_addr)
+        },
         testnet,
     };
 
-    let adapter = create_exchange_adapter("binance", credentials)?;
+    let adapter = create_exchange_adapter(&row.exchange_type, credentials)?;
     match adapter.ping().await {
         Ok(_) => Ok((
             RuntimeExecutionContext {
-                mode: RuntimeExecutionMode::LiveBinance,
+                mode: RuntimeExecutionMode::LiveExchange,
             },
             Some(adapter),
         )),
         Err(err) => {
             warn!(
-                "binance ping failed for trader={}, fallback to simulated mode: {}",
+                "exchange ping failed for trader={}, fallback to simulated mode: {}",
                 cfg.trader_id, err
             );
             Ok((
