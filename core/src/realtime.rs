@@ -5,7 +5,7 @@ use axum::{
     http::StatusCode,
     response::sse::{Event, KeepAlive, Sse},
 };
-use futures_util::{Stream, stream};
+use futures_util::{Stream, StreamExt, stream};
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
 use tracing::{debug, warn};
@@ -14,6 +14,7 @@ use crate::contracts::trading::positions::PositionPayload;
 use crate::state::AppState;
 
 pub const REALTIME_CHANNEL_CAPACITY: usize = 512;
+const SSE_CONNECTED_COMMENT: &str = "connected";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -135,7 +136,7 @@ pub async fn events_handler(
 
     debug!("sse: client connected user_id={}", user_id);
 
-    let stream = stream::unfold((rx, user_id), |(mut rx, user_id)| async move {
+    let event_stream = stream::unfold((rx, user_id), |(mut rx, user_id)| async move {
         loop {
             match rx.recv().await {
                 Ok(event) => {
@@ -160,12 +161,17 @@ pub async fn events_handler(
             }
         }
     });
+    let stream = sse_initial_stream().chain(event_stream);
 
     Ok(Sse::new(stream).keep_alive(
         KeepAlive::new()
             .interval(Duration::from_secs(20))
             .text("keep-alive"),
     ))
+}
+
+fn sse_initial_stream() -> impl Stream<Item = Result<Event, Infallible>> {
+    stream::once(async { Ok(Event::default().comment(SSE_CONNECTED_COMMENT)) })
 }
 
 fn validate_stream_token(app: &AppState, token: &str) -> Option<String> {
@@ -184,9 +190,23 @@ fn validate_stream_token(app: &AppState, token: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    use futures_util::StreamExt;
     use serde_json::json;
 
     use super::*;
+
+    #[tokio::test]
+    async fn sse_initial_stream_sends_connected_comment_immediately() {
+        let stream = sse_initial_stream();
+        futures_util::pin_mut!(stream);
+        let event = stream
+            .next()
+            .await
+            .expect("initial sse event should be emitted immediately")
+            .expect("initial sse event should serialize");
+
+        drop(event);
+    }
 
     #[test]
     fn position_update_serializes_full_position_payloads() {
