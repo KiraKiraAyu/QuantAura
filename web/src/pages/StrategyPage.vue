@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { Icon } from "@iconify/vue"
-import BaseButton from "@/components/universal/BaseButton.vue"
+import Button from "primevue/button"
 import PageHeader from "@/components/layout/PageHeader.vue"
 import StrategyEditor from "@/components/strategy/StrategyEditor.vue"
 import StrategyList from "@/components/strategy/StrategyList.vue"
@@ -35,13 +34,7 @@ const {
       description="Create and manage trading strategies"
     >
       <template #actions>
-        <BaseButton @click="createNew">
-          <Icon
-            icon="ic:round-add"
-            class="inline-block text-base align-[-0.125em]"
-          />
-          New Strategy
-        </BaseButton>
+        <Button label="New Strategy" icon="pi pi-plus" @click="createNew" />
       </template>
     </PageHeader>
 
