@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue"
-import { Icon } from "@iconify/vue"
-import BaseButton from "@/components/universal/BaseButton.vue"
+import Button from "primevue/button"
 import AddExchangeModal from "@/components/settings/AddExchangeModal.vue"
 import { deleteExchangeApi, getExchangeConfigsApi } from "@/api/exchanges"
 import type { SafeExchangeConfig } from "@/types/exchanges"
@@ -31,55 +30,53 @@ onMounted(loadExchanges)
   <div class="flex flex-col gap-4">
     <div>
       <div class="flex items-center justify-between mb-4">
-        <h2 class="font-bold text-sm">Exchange Accounts</h2>
-        <BaseButton @click="showAddExchange = true" class="text-xs py-1.5">
-          <Icon
-            icon="ic:round-add"
-            class="inline-block text-base align-[-0.125em]"
-          />
-          Add Exchange
-        </BaseButton>
+        <h2 class="font-bold text-lg text-surface-900 dark:text-white">Exchange Accounts</h2>
+        <Button
+          label="Add Exchange"
+          icon="pi pi-plus"
+          size="small"
+          @click="showAddExchange = true"
+        />
       </div>
       <div class="flex flex-col gap-3">
         <div
           v-for="ex in exchanges"
           :key="ex.id"
-          class="p-4 rounded-xl bg-[--color-surface-elevated] border border-[--color-border-subtle]"
+          class="p-4 rounded-xl bg-surface-0 dark:bg-surface-900 border border-surface-200 dark:border-surface-800"
         >
           <div class="flex items-center justify-between">
             <div>
-              <h3 class="font-semibold text-sm">
+              <h3 class="font-bold text-surface-900 dark:text-surface-100">
                 {{ ex.account_name || ex.exchange_type }}
               </h3>
-              <p class="text-xs text-[--color-text-muted]">
+              <p class="text-xs text-surface-500 font-medium tracking-wide uppercase mt-0.5">
                 {{ ex.exchange_type }}
               </p>
             </div>
-            <div class="flex items-center gap-2">
-              <span
-                class="text-xs px-2 py-1 rounded bg-[--color-surface] text-[--color-text-muted]"
-              >
+            <div class="flex items-center gap-3">
+              <span class="text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded bg-surface-100 text-surface-600 dark:bg-surface-800 dark:text-surface-400">
                 {{ ex.testnet ? "Testnet" : "Live" }}
               </span>
-              <span :class="ex.enabled ? '' : ''">
+              <span
+                class="text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded"
+                :class="ex.enabled ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-surface-100 text-surface-600 dark:bg-surface-800 dark:text-surface-400'"
+              >
                 {{ ex.enabled ? "Active" : "Disabled" }}
               </span>
-              <BaseButton
+              <Button
+                icon="pi pi-trash"
+                severity="danger"
+                variant="text"
+                rounded
+                aria-label="Delete"
                 @click="deleteExchange(ex.id)"
-                class="text-xs px-2 py-1 rounded text-[--color-error] bg-[oklch(0.65_0.21_15/0.1)]"
-              >
-                <Icon
-                  icon="ic:round-delete"
-                  class="inline-block text-base align-[-0.125em]"
-                />
-                Delete
-              </BaseButton>
+              />
             </div>
           </div>
         </div>
         <div
           v-if="exchanges.length === 0"
-          class="text-center py-8 text-sm text-[--color-text-muted]"
+          class="text-center py-12 text-sm text-surface-500"
         >
           No exchanges configured. Add one to start trading.
         </div>

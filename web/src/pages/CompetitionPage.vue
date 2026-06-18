@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { Icon } from "@iconify/vue"
-import BaseButton from "@/components/universal/BaseButton.vue"
+import { computed } from "vue"
+import Button from "primevue/button"
+import Dialog from "primevue/dialog"
 import CompetitionEquityPanel from "@/components/competition/CompetitionEquityPanel.vue"
 import CompetitionLeaderboard from "@/components/competition/CompetitionLeaderboard.vue"
 import CompetitionPodium from "@/components/competition/CompetitionPodium.vue"
@@ -21,6 +22,13 @@ const {
   showDetail,
   topThree,
 } = useCompetitionPage()
+
+const showDialog = computed({
+  get: () => selectedTrader.value !== null,
+  set: (val) => {
+    if (!val) selectedTrader.value = null
+  }
+})
 </script>
 
 <template>
@@ -30,18 +38,21 @@ const {
       description="Live AI trader leaderboard - Updates every scan interval"
     >
       <template #actions>
-        <div class="flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-success animate-pulse"></span>
-          <span class="text-xs text-[--color-text-muted]">{{
-            lastUpdated
-          }}</span>
-          <BaseButton @click="load" class="text-xs py-1.5 px-3">
-            <Icon
-              icon="ic:round-refresh"
-              class="inline-block text-base align-[-0.125em]"
-            />
-            Refresh
-          </BaseButton>
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span class="text-xs text-surface-500 font-medium">{{
+              lastUpdated
+            }}</span>
+          </div>
+          <Button
+            label="Refresh"
+            icon="pi pi-refresh"
+            size="small"
+            severity="secondary"
+            variant="outlined"
+            @click="load"
+          />
         </div>
       </template>
     </PageHeader>
@@ -64,11 +75,17 @@ const {
       @select="showDetail"
     />
 
-    <CompetitionEquityPanel
-      v-if="selectedTrader"
-      :trader="selectedTrader"
-      :data="selectedEquity"
-      @close="selectedTrader = null"
-    />
+    <Dialog
+      v-model:visible="showDialog"
+      modal
+      :header="selectedTrader ? `${selectedTrader.trader_name || selectedTrader.trader_id} - Equity Curve` : 'Equity Curve'"
+      :style="{ width: '50rem' }"
+    >
+      <CompetitionEquityPanel
+        v-if="selectedTrader"
+        :trader="selectedTrader"
+        :data="selectedEquity"
+      />
+    </Dialog>
   </div>
 </template>

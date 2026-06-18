@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { Icon } from "@iconify/vue"
-import BaseButton from "@/components/universal/BaseButton.vue"
+import Button from "primevue/button"
 import type { LlmProvider } from "@/types/ai-models-ui"
 
 defineProps<{
@@ -19,40 +18,29 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div
-    class="flex w-64 shrink-0 flex-col gap-2 border-r border-[--color-border-subtle] pr-4"
-  >
-    <BaseButton
-      @click="emit('addProvider')"
-      class="text-xs py-2 justify-center"
+  <div class="flex w-64 shrink-0 flex-col gap-3 border-r border-surface-200 dark:border-surface-800 pr-4">
+    <Button
+      label="Add Provider"
+      icon="pi pi-plus"
+      class="w-full"
       :disabled="supportedProviderTypeCount === 0"
-    >
-      <Icon
-        icon="ic:round-add-circle"
-        class="inline-block text-base align-[-0.125em]"
-      />
-      Add Provider
-    </BaseButton>
+      @click="emit('addProvider')"
+    />
 
-    <div class="mt-2 flex flex-col gap-1">
+    <div class="flex flex-col gap-1">
       <button
         v-for="(provider, providerIndex) in providers"
         :key="providerKey(provider, providerIndex)"
         type="button"
-        class="rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-[--color-surface-elevated]"
-        :class="
-          selectedProviderIndex === providerIndex
-            ? 'bg-[--color-surface-elevated] text-[--color-text-primary]'
-            : 'text-[--color-text-secondary]'
-        "
+        class="cursor-pointer rounded-xl px-4 py-3 text-left text-sm transition-colors hover:bg-surface-100 dark:hover:bg-surface-800"
+        :class="selectedProviderIndex === providerIndex ? 'bg-surface-100 dark:bg-surface-800 text-surface-900 dark:text-white font-bold' : 'text-surface-700 dark:text-surface-300 font-medium'"
         @click="emit('selectProvider', providerIndex)"
       >
-        <span class="block truncate font-medium">
+        <span class="block truncate">
           {{ providerLabel(provider) }}
         </span>
-        <span class="block truncate text-xs text-[--color-text-muted]">
-          {{ apiCategoryLabel(provider.providerType) }} ·
-          {{ provider.baseUrl }}
+        <span class="block truncate text-xs text-surface-500 font-medium tracking-wide mt-1">
+          {{ apiCategoryLabel(provider.providerType) }} · {{ provider.baseUrl }}
         </span>
       </button>
     </div>

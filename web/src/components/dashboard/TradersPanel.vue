@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Icon } from "@iconify/vue"
-import BaseButton from "@/components/universal/BaseButton.vue"
+import Card from "primevue/card"
+import Button from "primevue/button"
 import TraderRow from "@/components/TraderRow.vue"
 import type { DashboardTrader } from "@/types/dashboard-ui"
 
@@ -19,38 +19,40 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div>
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="font-bold text-sm">Traders</h2>
-      <BaseButton @click="emit('create')" class="py-1.5 text-xs">
-        <Icon
-          icon="ic:round-add"
-          class="inline-block text-base align-[-0.125em]"
+  <Card class="border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-none! mb-6">
+    <template #content>
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-bold text-lg text-surface-900 dark:text-white">Active Traders</h2>
+        <Button
+          icon="pi pi-plus"
+          label="New Trader"
+          @click="emit('create')"
+          class="rounded-xl px-4 h-10 cursor-pointer"
         />
-        New Trader
-      </BaseButton>
-    </div>
+      </div>
 
-    <div
-      v-if="!initialLoadDone && loading"
-      class="text-center text-sm py-8 text-[--color-text-muted]"
-    >
-      Loading...
-    </div>
-    <div v-else-if="traders.length === 0" class="text-center py-8">
-      <p class="text-sm text-[--color-text-muted]">
-        No traders yet. Create one to start.
-      </p>
-    </div>
-    <div v-else class="flex flex-col gap-2">
-      <TraderRow
-        v-for="trader in traders"
-        :key="trader.id"
-        :trader="trader"
-        @start="emit('start', trader.id)"
-        @stop="emit('stop', trader.id)"
-        @sync="emit('sync', trader.id)"
-      />
-    </div>
-  </div>
+      <div
+        v-if="!initialLoadDone && loading"
+        class="text-center text-sm py-12 text-surface-400 dark:text-surface-500"
+      >
+        <span class="pi pi-spin pi-spinner mr-2"></span>
+        Loading traders...
+      </div>
+      <div v-else-if="traders.length === 0" class="text-center py-12 border border-dashed border-surface-200 dark:border-surface-800 rounded-2xl bg-surface-50/50 dark:bg-surface-950/20">
+        <p class="text-sm text-surface-400 dark:text-surface-500">
+          No traders active yet. Create one to start trading.
+        </p>
+      </div>
+      <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <TraderRow
+          v-for="trader in traders"
+          :key="trader.id"
+          :trader="trader"
+          @start="emit('start', trader.id)"
+          @stop="emit('stop', trader.id)"
+          @sync="emit('sync', trader.id)"
+        />
+      </div>
+    </template>
+  </Card>
 </template>

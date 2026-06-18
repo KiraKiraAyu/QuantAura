@@ -68,13 +68,17 @@ function feed(arr: CandlestickData[]) {
 }
 
 function onResize() {
-  if (chart && chartEl.value)
-    chart.applyOptions({ width: chartEl.value.clientWidth })
+  if (chart && chartEl.value) {
+    chart.applyOptions({ 
+      width: chartEl.value.clientWidth,
+      height: chartEl.value.clientHeight
+    })
+  }
 }
 
 watch(() => props.data, feed, { deep: true })
 </script>
 
 <template>
-  <div ref="chartEl" class="w-full" :style="{ height: height + 'px' }"></div>
+  <div ref="chartEl" class="w-full h-full min-h-0"></div>
 </template>

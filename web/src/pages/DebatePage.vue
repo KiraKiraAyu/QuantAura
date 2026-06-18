@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { Icon } from "@iconify/vue"
-import BaseButton from "@/components/universal/BaseButton.vue"
+import Button from "primevue/button"
 import CreateDebateModal from "@/components/debate/CreateDebateModal.vue"
 import DebateDetail from "@/components/debate/DebateDetail.vue"
 import DebateSessionsList from "@/components/debate/DebateSessionsList.vue"
@@ -32,13 +31,7 @@ const {
       description="Multiple AI personalities debate trading decisions"
     >
       <template #actions>
-        <BaseButton @click="showCreate = true">
-          <Icon
-            icon="ic:round-add"
-            class="inline-block text-base align-[-0.125em]"
-          />
-          New Debate
-        </BaseButton>
+        <Button @click="showCreate = true" icon="pi pi-plus" label="New Debate" class="rounded-xl" />
       </template>
     </PageHeader>
 

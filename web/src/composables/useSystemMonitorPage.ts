@@ -53,6 +53,14 @@ export function useSystemMonitorPage() {
   }
 
   async function loadAll() {
+    if (traders.value.length === 0) {
+      loading.value = false
+      metrics.value = null
+      alerts.value = []
+      events.value = []
+      return
+    }
+
     loading.value = true
     try {
       const params = activeTrader.value ? { trader_id: activeTrader.value } : {}

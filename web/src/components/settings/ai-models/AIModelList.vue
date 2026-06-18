@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { Icon } from "@iconify/vue"
-import BaseButton from "@/components/universal/BaseButton.vue"
+import Button from "primevue/button"
 import AIModelCard from "@/components/settings/ai-models/AIModelCard.vue"
 import NewAIModelCard from "@/components/settings/ai-models/NewAIModelCard.vue"
 import RemoteModelList from "@/components/settings/ai-models/RemoteModelList.vue"
@@ -32,36 +31,30 @@ function providerHasModel(modelId: string) {
 </script>
 
 <template>
-  <div class="mt-6 flex min-h-0 flex-1 flex-col">
-    <div class="mb-2 flex items-center justify-between">
-      <h3 class="text-lg font-semibold">Models</h3>
+  <div class="mt-8 flex min-h-0 flex-1 flex-col">
+    <div class="mb-4 flex items-center justify-between">
+      <h3 class="text-lg font-bold text-surface-900 dark:text-white">Models</h3>
       <div class="flex gap-2">
-        <BaseButton
-          @click="emit('fetchRemoteModels', provider)"
-          class="text-xs py-1.5 px-3"
+        <Button
+          :label="fetchingRemoteModels ? 'Fetching...' : 'Fetch Models'"
+          icon="pi pi-cloud-download"
+          size="small"
+          severity="secondary"
+          variant="outlined"
           :disabled="fetchingRemoteModels || !provider.apiKey"
-        >
-          <Icon
-            icon="ic:round-cloud-download"
-            class="inline-block text-base align-[-0.125em]"
-          />
-          {{ fetchingRemoteModels ? "Fetching..." : "Fetch Models" }}
-        </BaseButton>
-        <BaseButton
+          @click="emit('fetchRemoteModels', provider)"
+        />
+        <Button
           v-if="!isAddingModel"
+          label="Add Model"
+          icon="pi pi-plus"
+          size="small"
           @click="emit('startAddModel')"
-          class="text-xs py-1.5 px-3"
-        >
-          <Icon
-            icon="ic:round-add"
-            class="inline-block text-base align-[-0.125em]"
-          />
-          Add Model
-        </BaseButton>
+        />
       </div>
     </div>
 
-    <div class="flex-1 overflow-y-auto pr-2">
+    <div class="flex-1 overflow-y-auto pr-2 pb-4 flex flex-col gap-3">
       <RemoteModelList
         :remote-models="remoteModels"
         :has-model="providerHasModel"
@@ -86,10 +79,10 @@ function providerHasModel(modelId: string) {
       <button
         v-if="!isAddingModel"
         type="button"
-        class="flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-[--color-border-subtle] bg-transparent p-2 text-sm text-[--color-text-secondary] transition-colors hover:bg-[--color-surface-elevated]"
+        class="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-surface-300 dark:border-surface-700 bg-transparent p-4 text-sm font-medium text-surface-500 transition-colors hover:bg-surface-100 dark:hover:bg-surface-800"
         @click="emit('startAddModel')"
       >
-        <Icon icon="ic:round-add" class="text-base" />
+        <i class="pi pi-plus text-base"></i>
         Add Model
       </button>
     </div>

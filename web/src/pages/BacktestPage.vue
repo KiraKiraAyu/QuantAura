@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { Icon } from "@iconify/vue"
-import BaseButton from "@/components/universal/BaseButton.vue"
+import Button from "primevue/button"
 import BacktestConfigPanel from "@/components/backtest/BacktestConfigPanel.vue"
 import BacktestLiveProgress from "@/components/backtest/BacktestLiveProgress.vue"
 import BacktestRunsTable from "@/components/backtest/BacktestRunsTable.vue"
@@ -28,13 +27,13 @@ const {
       description="Simulate and analyze AI trading strategies"
     >
       <template #actions>
-        <BaseButton @click="startRun" :disabled="running">
-          <Icon
-            :icon="running ? 'ic:round-hourglass-empty' : 'ic:round-play-arrow'"
-            class="inline-block text-base align-[-0.125em]"
-          />
-          {{ running ? "Running..." : "Start Backtest" }}
-        </BaseButton>
+        <Button
+          @click="startRun"
+          :disabled="running"
+          :icon="running ? 'pi pi-spin pi-spinner' : 'pi pi-play'"
+          :label="running ? 'Running...' : 'Start Backtest'"
+          class="rounded-xl h-11 px-4 cursor-pointer"
+        />
       </template>
     </PageHeader>
 
