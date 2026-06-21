@@ -9,13 +9,6 @@ export interface ExchangeConfigPatch {
   passphrase?: string
   testnet?: boolean
   hyperliquid_wallet_addr?: string
-  aster_user?: string
-  aster_signer?: string
-  aster_private_key?: string
-  lighter_wallet_addr?: string
-  lighter_private_key?: string
-  lighter_api_key_private_key?: string
-  lighter_api_key_index?: number
 }
 
 export interface CreateExchangeRequest {
@@ -27,13 +20,6 @@ export interface CreateExchangeRequest {
   passphrase?: string
   testnet?: boolean
   hyperliquid_wallet_addr?: string
-  aster_user?: string
-  aster_signer?: string
-  aster_private_key?: string
-  lighter_wallet_addr?: string
-  lighter_private_key?: string
-  lighter_api_key_private_key?: string
-  lighter_api_key_index?: number
 }
 
 export interface SafeExchangeConfig {
@@ -45,10 +31,6 @@ export interface SafeExchangeConfig {
   enabled: boolean
   testnet: boolean
   hyperliquidWalletAddr: string
-  asterUser: string
-  asterSigner: string
-  lighterWalletAddr: string
-  lighterApiKeyIndex: number
 }
 
 export interface MessagePayload {

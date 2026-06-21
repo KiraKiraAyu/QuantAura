@@ -7,15 +7,12 @@ use crate::{http::handlers::competition::*, state::AppState};
 
 pub fn router() -> Router<AppState> {
     Router::new()
-        .route("/competition", get(handle_public_competition))
-        .route("/competition/top-traders", get(handle_top_traders))
-        .route("/competition/equity-history", get(handle_equity_history))
+        .route("/", get(handle_public_competition))
+        .route("/top-traders", get(handle_top_traders))
+        .route("/equity-history", get(handle_equity_history))
+        .route("/equity-history-batch", post(handle_equity_history_batch))
         .route(
-            "/competition/equity-history-batch",
-            post(handle_equity_history_batch),
-        )
-        .route(
-            "/competition/traders/{id}/public-config",
+            "/traders/{id}/public-config",
             get(handle_public_trader_config),
         )
 }

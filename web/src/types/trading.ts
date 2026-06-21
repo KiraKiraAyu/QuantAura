@@ -1,5 +1,3 @@
-import type { JsonValue } from "@/types/json"
-
 export interface CreateTraderRequest {
   name: string
   ai_model_id: string
@@ -50,6 +48,7 @@ export interface ToggleCompetitionRequest {
 export interface ClosePositionRequest {
   symbol: string
   side: string
+  local_only?: boolean
 }
 
 export interface TraderQuery {
@@ -203,11 +202,14 @@ export interface TraderAccountPayload {
 
 export interface TraderBalanceSyncPayload {
   message: string
+  mode: string
   account: TraderAccountPayload
 }
 
 export interface ClosePositionPayload {
   message: string
+  mode: string
+  order_id: string
   symbol: string
   side: string
 }
@@ -246,6 +248,7 @@ export interface TraderStatusPayload {
 
 export interface PositionPayload {
   id: string
+  trader_id: string
   symbol: string
   side: string
   quantity: number
@@ -373,7 +376,7 @@ export interface RuntimeEventPayload {
   trigger_source: string
   action_taken: string
   correlation_id: string
-  payload: JsonValue
+  payload: Record<string, unknown>
   created_at: number
 }
 

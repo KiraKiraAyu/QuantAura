@@ -6,6 +6,8 @@ import {
   ColorType,
   type UTCTimestamp,
   type CandlestickData,
+  type IChartApi,
+  type ISeriesApi,
 } from "lightweight-charts"
 
 const props = withDefaults(
@@ -17,10 +19,8 @@ const props = withDefaults(
 )
 
 const chartEl = ref<HTMLElement | null>(null)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let chart: any = null
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let candles: any = null
+let chart: IChartApi | null = null
+let candles: ISeriesApi<"Candlestick"> | null = null
 
 onMounted(() => {
   if (!chartEl.value) return
@@ -68,13 +68,17 @@ function feed(arr: CandlestickData[]) {
 }
 
 function onResize() {
-  if (chart && chartEl.value)
-    chart.applyOptions({ width: chartEl.value.clientWidth })
+  if (chart && chartEl.value) {
+    chart.applyOptions({ 
+      width: chartEl.value.clientWidth,
+      height: chartEl.value.clientHeight
+    })
+  }
 }
 
 watch(() => props.data, feed, { deep: true })
 </script>
 
 <template>
-  <div ref="chartEl" class="w-full" :style="{ height: height + 'px' }"></div>
+  <div ref="chartEl" class="w-full h-full min-h-0"></div>
 </template>

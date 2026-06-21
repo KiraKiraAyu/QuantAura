@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, watch } from "vue"
-import BaseButton from "@/components/universal/BaseButton.vue"
-import BaseModal from "@/components/universal/BaseModal.vue"
+import Button from "primevue/button"
+import Dialog from "primevue/dialog"
+import Select from "primevue/select"
 import type { LlmProvider } from "@/types/ai-models-ui"
 
 const props = defineProps<{
@@ -21,7 +22,7 @@ const modelOptions = computed(() => {
   return (
     props.provider?.models
       .map((model) => ({
-        label: model.name || model.modelId,
+        label: `${model.name || model.modelId} (${model.modelId.trim()})`,
         value: model.modelId.trim(),
       }))
       .filter((model) => model.value) ?? []
@@ -45,58 +46,62 @@ function close() {
   emit("update:open", false)
 }
 
-function updateSelectedModel(event: Event) {
-  emit("update:selectedModelId", (event.target as HTMLSelectElement).value)
+function updateSelectedModel(value: string) {
+  emit("update:selectedModelId", value)
 }
 </script>
 
 <template>
-  <BaseModal
-    :model-value="open"
-    title="Test Provider"
-    @update:model-value="emit('update:open', $event)"
+  <Dialog
+    :visible="open"
+    modal
+    header="Test Provider"
+    :style="{ width: '25rem' }"
+    @update:visible="emit('update:open', $event)"
   >
-    <div class="flex flex-col gap-3">
-      <p class="text-sm text-[--color-text-secondary]">
+    <div class="flex flex-col gap-4 py-2">
+      <p class="text-sm text-surface-600 dark:text-surface-400 m-0">
         Select a model to send a minimal test request with this provider.
       </p>
 
-      <div>
-        <label>Test Model</label>
-        <select
-          :value="selectedModelId"
+      <div class="flex flex-col gap-1">
+        <label class="text-sm font-medium text-surface-700 dark:text-surface-300">Test Model</label>
+        <Select
+          :model-value="selectedModelId"
+          :options="modelOptions"
+          option-label="label"
+          option-value="value"
           :disabled="modelOptions.length === 0"
-          @change="updateSelectedModel"
-        >
-          <option
-            v-for="model in modelOptions"
-            :key="model.value"
-            :value="model.value"
-          >
-            {{ model.label }} ({{ model.value }})
-          </option>
-        </select>
+          placeholder="Select a model"
+          class="w-full"
+          @update:model-value="updateSelectedModel"
+        />
       </div>
 
       <p
         v-if="modelOptions.length === 0"
-        class="text-xs text-[--color-text-muted]"
+        class="text-xs text-surface-500 m-0"
       >
         Add at least one model before testing this provider.
       </p>
     </div>
 
     <template #footer>
-      <BaseButton class="text-xs px-4 py-1.5" @click="close">
-        Cancel
-      </BaseButton>
-      <BaseButton
-        class="text-xs px-4 py-1.5"
-        :disabled="checking || !selectedModelId"
-        @click="emit('confirm')"
-      >
-        {{ checking ? "Testing..." : "Test" }}
-      </BaseButton>
+      <div class="flex justify-end gap-2">
+        <Button 
+          label="Cancel" 
+          icon="pi pi-times" 
+          severity="secondary" 
+          variant="text" 
+          @click="close" 
+        />
+        <Button
+          :label="checking ? 'Testing...' : 'Test'"
+          :icon="checking ? 'pi pi-spin pi-spinner' : 'pi pi-check'"
+          :disabled="checking || !selectedModelId"
+          @click="emit('confirm')"
+        />
+      </div>
     </template>
-  </BaseModal>
+  </Dialog>
 </template>

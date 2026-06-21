@@ -1,68 +1,80 @@
 <script setup lang="ts">
-import { Icon } from "@iconify/vue"
-import BaseButton from "@/components/universal/BaseButton.vue"
-defineProps<{ trader: Record<string, unknown> }>()
+import Button from "primevue/button"
+import type { TraderPayload } from "@/types/trading"
+
+defineProps<{ trader: TraderPayload }>()
 defineEmits(["start", "stop", "sync"])
 </script>
 
 <template>
   <div
-    class="flex items-center gap-3 py-3 px-3 rounded-xl transition-colors bg-[--color-surface-elevated]"
+    class="flex items-center gap-4 py-3 px-4 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-950 hover:bg-surface-100/50 dark:hover:bg-surface-900/30 transition-all duration-200"
   >
     <!-- Status indicator -->
-    <div
-      class="w-2 h-2 rounded-full shrink-0"
-      :class="
-        trader.is_running
-          ? 'bg-success animate-pulse'
-          : 'bg-text-muted'
-      "
-    ></div>
+    <div class="relative flex h-3 w-3 shrink-0">
+      <span
+        v-if="trader.is_running"
+        class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"
+      ></span>
+      <span
+        class="relative inline-flex rounded-full h-3 w-3 transition-colors"
+        :class="trader.is_running ? 'bg-emerald-500' : 'bg-surface-300 dark:bg-surface-600'"
+      ></span>
+    </div>
 
     <!-- Info -->
     <div class="flex-1 min-w-0">
-      <p class="text-sm font-semibold truncate">
+      <div class="text-sm font-bold text-surface-900 dark:text-white truncate">
         {{ trader.name || trader.id }}
-      </p>
-      <p class="text-xs truncate text-[--color-text-muted]">
-        {{ trader.ai_model_id ?? trader.ai_model ?? "" }} ·
-        {{ trader.exchange_id ?? "" }}
-      </p>
+      </div>
+      <div class="text-xs text-surface-400 dark:text-surface-500 truncate mt-0.5 font-medium">
+        {{ trader.ai_model_id }} <span class="mx-1">·</span> {{ trader.exchange_id ?? "Paper" }}
+      </div>
     </div>
 
     <!-- Actions -->
-    <div class="flex items-center gap-1.5 shrink-0">
+    <div class="flex items-center gap-2 shrink-0">
       <span
-        :class="trader.is_running ? '' : ''"
-        class="text-[0.65rem]"
+        class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md"
+        :class="
+          trader.is_running
+            ? 'bg-emerald-500/10 text-emerald-500 dark:bg-emerald-500/20'
+            : 'bg-surface-100 text-surface-500 dark:bg-surface-800 dark:text-surface-400'
+        "
       >
         {{ trader.is_running ? "Running" : "Stopped" }}
       </span>
 
       <!-- Sync balance -->
-      <BaseButton
+      <Button
+        icon="pi pi-refresh"
+        severity="secondary"
+        text
+        rounded
         @click="$emit('sync')"
-        class="text-xs px-2 py-1 rounded-lg transition-colors text-[--color-text-muted] bg-[--color-surface-overlay]"
-        title="Sync balance">
-        <Icon icon="ic:round-refresh" class="inline-block text-base align-[-0.125em]" />
-
-      </BaseButton>
+        title="Sync balance"
+        class="h-9 w-9 cursor-pointer"
+      />
 
       <!-- Start / Stop -->
-      <BaseButton
+      <Button
         v-if="!trader.is_running"
+        icon="pi pi-play"
+        severity="success"
+        rounded
         @click="$emit('start')"
-        class="text-xs px-2.5 py-1 rounded-lg font-semibold transition-colors bg-[oklch(0.72_0.17_145/0.15)] text-[--color-success]">
-        <Icon icon="ic:round-play-arrow" class="inline-block text-base align-[-0.125em]" />
-
-      </BaseButton>
-      <BaseButton
+        title="Start trader"
+        class="h-9 w-9 cursor-pointer bg-emerald-500! border-emerald-500! hover:bg-emerald-600! hover:border-emerald-600! text-white!"
+      />
+      <Button
         v-else
+        icon="pi pi-stop"
+        severity="danger"
+        rounded
         @click="$emit('stop')"
-        class="text-xs px-2.5 py-1 rounded-lg font-semibold transition-colors bg-[oklch(0.65_0.21_15/0.15)] text-[--color-error]">
-        <Icon icon="ic:round-stop" class="inline-block text-base align-[-0.125em]" />
-
-      </BaseButton>
+        title="Stop trader"
+        class="h-9 w-9 cursor-pointer bg-rose-500! border-rose-500! hover:bg-rose-600! hover:border-rose-600! text-white!"
+      />
     </div>
   </div>
 </template>

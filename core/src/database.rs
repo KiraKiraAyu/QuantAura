@@ -92,9 +92,9 @@ mod tests {
     #[test]
     fn sqlite_file_path_preserves_absolute_paths() {
         let path =
-            sqlite_file_path("sqlite:///tmp/amaryllis.db?mode=rwc").expect("absolute sqlite path");
+            sqlite_file_path("sqlite:///tmp/quantaura.db?mode=rwc").expect("absolute sqlite path");
 
-        assert_eq!(path, PathBuf::from("/tmp/amaryllis.db"));
+        assert_eq!(path, PathBuf::from("/tmp/quantaura.db"));
     }
 
     #[test]
@@ -103,7 +103,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("system time before unix epoch")
             .as_nanos();
-        let dir = std::env::temp_dir().join(format!("amaryllis-db-{unique}"));
+        let dir = std::env::temp_dir().join(format!("quantaura-db-{unique}"));
         let file = dir.join("test.db");
         let url = format!("sqlite://{}", file.display());
 

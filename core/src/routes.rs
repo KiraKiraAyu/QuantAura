@@ -43,8 +43,8 @@ pub fn build_app(state: AppState, timeout_secs: u64) -> Router {
             post(handlers::auth::change_password),
         )
         .route("/me", get(handlers::auth::me))
-        .merge(catalog::router())
-        .merge(competition::router())
+        .nest("/catalog", catalog::router())
+        .nest("/competition", competition::router())
         .nest("/crypto", crypto::router())
         .nest("/market", market::router())
         .nest("/models", models::router())

@@ -1,9 +1,9 @@
-// Integration tests for Amaryllis core
+// Integration tests for QuantAura core
 // This file serves as the entry point for integration tests
 
 #[cfg(test)]
 mod database_integration {
-    use amaryllis::database::init_database;
+    use quantaura::database::init_database;
 
     #[tokio::test]
     async fn test_database_initialization() {

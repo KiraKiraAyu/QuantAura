@@ -97,6 +97,7 @@ pub struct TraderRuntimeConfig {
     pub initial_balance: f64,
     pub btc_eth_leverage: i64,
     pub altcoin_leverage: i64,
+    pub is_cross_margin: bool,
     pub trading_symbols: String,
     pub custom_prompt: String,
     pub override_base_prompt: bool,
@@ -107,7 +108,7 @@ pub struct TraderRuntimeConfig {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RuntimeExecutionMode {
     Simulated,
-    LiveBinance,
+    LiveExchange,
 }
 
 #[derive(Debug, Clone)]

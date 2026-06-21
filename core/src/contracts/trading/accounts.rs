@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 pub struct ClosePositionRequest {
     pub symbol: String,
     pub side: String,
+    #[serde(default)]
+    pub local_only: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -21,12 +23,15 @@ pub struct TraderAccountPayload {
 #[derive(Debug, Clone, Serialize)]
 pub struct TraderBalanceSyncPayload {
     pub message: &'static str,
+    pub mode: String,
     pub account: TraderAccountPayload,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ClosePositionPayload {
     pub message: &'static str,
+    pub mode: String,
+    pub order_id: String,
     pub symbol: String,
     pub side: String,
 }

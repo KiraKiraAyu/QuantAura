@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { Icon } from "@iconify/vue"
-import BaseButton from "@/components/universal/BaseButton.vue"
-import BaseInput from "@/components/universal/BaseInput.vue"
+import Button from "primevue/button"
+import InputText from "primevue/inputtext"
+import Select from "primevue/select"
+import ToggleSwitch from "primevue/toggleswitch"
 import type { ApiCategoryOption, LlmProvider } from "@/types/ai-models-ui"
 
 defineProps<{
@@ -20,84 +21,75 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <BaseInput v-model="provider.name" label="Provider Name" />
+  <div class="flex flex-col gap-4">
+    <div class="flex flex-col gap-1">
+      <label class="text-sm font-medium text-surface-700 dark:text-surface-300">Provider Name</label>
+      <InputText v-model="provider.name" />
+    </div>
 
-  <div>
-    <label>API Category</label>
-    <select v-model="provider.providerType">
-      <option
-        v-for="category in apiCategories"
-        :key="category.value"
-        :value="category.value"
-      >
-        {{ category.label }}
-      </option>
-    </select>
-  </div>
-
-  <BaseInput
-    v-model="provider.baseUrl"
-    label="API URL"
-    placeholder="https://api.example.com/v1"
-  />
-
-  <div class="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
-    <BaseInput
-      v-model="provider.apiKey"
-      type="password"
-      label="API Key"
-      placeholder="sk-..."
-    />
-    <BaseButton
-      @click="emit('checkProvider', provider)"
-      class="mb-2 text-xs px-3 py-2"
-      :disabled="checkingProvider || !provider.apiKey"
-    >
-      <Icon
-        icon="ic:round-check-circle"
-        class="inline-block text-base align-[-0.125em]"
+    <div class="flex flex-col gap-1">
+      <label class="text-sm font-medium text-surface-700 dark:text-surface-300">API Category</label>
+      <Select 
+        v-model="provider.providerType"
+        :options="apiCategories"
+        optionLabel="label"
+        optionValue="value"
+        class="w-full"
       />
-      {{ checkingProvider ? "Testing..." : "Test" }}
-    </BaseButton>
-  </div>
+    </div>
 
-  <p v-if="checkMessage" class="px-2 text-xs text-[--color-text-secondary]">
-    {{ checkMessage }}
-  </p>
-
-  <div class="mt-3 flex flex-wrap items-center gap-2">
-    <label
-      class="flex cursor-pointer items-center gap-2 text-xs text-[--color-text-secondary]"
-    >
-      <input
-        v-model="provider.enabled"
-        type="checkbox"
-        class="h-4 w-4 accent-pink-500"
+    <div class="flex flex-col gap-1">
+      <label class="text-sm font-medium text-surface-700 dark:text-surface-300">API URL</label>
+      <InputText
+        v-model="provider.baseUrl"
+        placeholder="https://api.example.com/v1"
       />
-      Enabled
-    </label>
-    <div class="ml-auto flex gap-2">
-      <BaseButton
-        @click="emit('removeProvider')"
-        class="text-xs px-3 py-1.5 text-[--color-error] bg-[oklch(0.65_0.21_15/0.1)]"
-      >
-        <Icon
-          icon="ic:round-delete"
-          class="inline-block text-base align-[-0.125em]"
+    </div>
+
+    <div class="flex items-end gap-2">
+      <div class="flex flex-col gap-1 flex-1">
+        <label class="text-sm font-medium text-surface-700 dark:text-surface-300">API Key</label>
+        <InputText
+          v-model="provider.apiKey"
+          type="password"
+          placeholder="sk-..."
         />
-        Delete
-      </BaseButton>
-      <BaseButton
-        @click="emit('saveModels')"
-        class="text-xs px-4 py-1.5"
-        :disabled="savingModels"
-      >
-        <Icon
-          icon="ic:round-save"
-          class="inline-block text-base align-[-0.125em]"
+      </div>
+      <Button
+        :label="checkingProvider ? 'Testing...' : 'Test'"
+        icon="pi pi-check"
+        severity="secondary"
+        variant="outlined"
+        :disabled="checkingProvider || !provider.apiKey"
+        @click="emit('checkProvider', provider)"
+      />
+    </div>
+
+    <p v-if="checkMessage" class="px-1 text-xs font-medium text-surface-500">
+      {{ checkMessage }}
+    </p>
+
+    <div class="mt-2 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <ToggleSwitch v-model="provider.enabled" />
+        <span class="text-sm font-medium text-surface-700 dark:text-surface-300">Enabled</span>
+      </div>
+      
+      <div class="flex gap-2">
+        <Button
+          label="Delete"
+          icon="pi pi-trash"
+          severity="danger"
+          variant="text"
+          @click="emit('removeProvider')"
         />
-        {{ savingModels ? "Saving..." : "Save" }}
-      </BaseButton>
+        <Button
+          :label="savingModels ? 'Saving...' : 'Save'"
+          icon="pi pi-save"
+          :disabled="savingModels"
+          @click="emit('saveModels')"
+        />
+      </div>
     </div>
   </div>
 </template>

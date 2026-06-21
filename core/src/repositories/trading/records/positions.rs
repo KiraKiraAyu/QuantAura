@@ -1,6 +1,7 @@
 #[derive(Debug, Clone)]
 pub struct TraderPositionRecord {
     pub id: String,
+    pub trader_id: String,
     pub symbol: String,
     pub side: String,
     pub quantity: f64,

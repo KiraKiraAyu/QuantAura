@@ -1,6 +1,9 @@
 pub mod binance;
+pub mod bitget;
 pub mod exchanges;
+pub mod hyperliquid;
 pub mod llm_chat;
 pub mod market_data;
 pub mod model_info;
+pub mod okx;
 pub mod outbound_http;

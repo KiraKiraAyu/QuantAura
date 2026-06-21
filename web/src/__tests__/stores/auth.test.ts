@@ -39,7 +39,7 @@ describe("Auth Store", () => {
     expect(store.token).toBe("test-token");
     expect(store.userId).toBe("user-123");
     expect(store.email).toBe("test@example.com");
-    expect(localStorage.getItem("amaryllis_token")).toBe("test-token");
+    expect(localStorage.getItem("quantaura_token")).toBe("test-token");
   });
 
   it("should clear session on logout", async () => {
@@ -52,6 +52,6 @@ describe("Auth Store", () => {
     expect(store.token).toBe("");
     expect(store.userId).toBe("");
     expect(store.email).toBe("");
-    expect(localStorage.getItem("amaryllis_token")).toBeNull();
+    expect(localStorage.getItem("quantaura_token")).toBeNull();
   });
 });

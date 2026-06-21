@@ -118,7 +118,7 @@ fn load_dotenv() {
 
 #[derive(Debug, Clone, Envconfig)]
 pub struct AppMetadataConfig {
-    #[envconfig(from = "APP_NAME", default = "amaryllis")]
+    #[envconfig(from = "APP_NAME", default = "quantaura")]
     pub name: String,
     #[envconfig(from = "ENV", default = "development")]
     pub environment: String,
@@ -215,7 +215,7 @@ struct JwtPathConfig {
     private_key_path: String,
     #[envconfig(from = "JWT_PUBLIC_KEY_PATH")]
     public_key_path: String,
-    #[envconfig(from = "JWT_ISSUER", default = "amaryllis")]
+    #[envconfig(from = "JWT_ISSUER", default = "quantaura")]
     issuer: String,
     #[envconfig(from = "JWT_TTL_SECS", default = "86400")]
     ttl_secs: u64,
@@ -265,7 +265,7 @@ impl AuthConfig {
 
 #[derive(Debug, Clone, Envconfig)]
 pub struct DatabaseConfig {
-    #[envconfig(from = "DB_URL", default = "sqlite://data/amaryllis.db")]
+    #[envconfig(from = "DB_URL", default = "sqlite://data/quantaura.db")]
     pub url: String,
 }
 
@@ -366,12 +366,12 @@ pub struct RuntimeAlertConfig {
     pub signing_secret: String,
     #[envconfig(
         from = "RUNTIME_ALERT_WEBHOOK_SIGNING_HEADER",
-        default = "X-Amaryllis-Signature"
+        default = "X-QuantAura-Signature"
     )]
     pub signing_header: String,
     #[envconfig(
         from = "RUNTIME_ALERT_WEBHOOK_SIGNING_TIMESTAMP_HEADER",
-        default = "X-Amaryllis-Timestamp"
+        default = "X-QuantAura-Timestamp"
     )]
     pub signing_timestamp_header: String,
     #[envconfig(from = "RUNTIME_ALERT_WEBHOOK_SIGNING_MAX_AGE_SECS", default = "300")]

@@ -14,7 +14,7 @@ const {
   loadAll,
   loading,
   metrics,
-  parseAlertsJson,
+  parseAlerts,
   traders,
 } = useSystemMonitorPage()
 </script>
@@ -31,11 +31,11 @@ const {
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <SystemMetricsPanel :metrics="metrics" :loading="loading" :fmt="fmt">
-        <AlertHistoryTable
-          :alerts="alerts"
-          :loading="loading"
-          :parse-alerts-json="parseAlertsJson"
-        />
+      <AlertHistoryTable
+        :alerts="alerts"
+        :loading="loading"
+        :parse-alerts="parseAlerts"
+      />
       </SystemMetricsPanel>
 
       <RuntimeEventsPanel

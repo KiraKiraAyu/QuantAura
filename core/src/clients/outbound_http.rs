@@ -43,7 +43,7 @@ pub async fn send_text(
     let request_body = meta.body.as_deref().map(redact_body);
 
     info!(
-        target: "amaryllis::outbound_http",
+        target: "quantaura::outbound_http",
         context = meta.context,
         method = %meta.method,
         url = %url,
@@ -55,7 +55,7 @@ pub async fn send_text(
         Ok(response) => response,
         Err(err) => {
             warn!(
-                target: "amaryllis::outbound_http",
+                target: "quantaura::outbound_http",
                 context = meta.context,
                 method = %meta.method,
                 url = %url,
@@ -72,7 +72,7 @@ pub async fn send_text(
         Ok(body) => body,
         Err(err) => {
             warn!(
-                target: "amaryllis::outbound_http",
+                target: "quantaura::outbound_http",
                 context = meta.context,
                 method = %meta.method,
                 url = %url,
@@ -87,7 +87,7 @@ pub async fn send_text(
     let response_body = redact_body(&body);
 
     info!(
-        target: "amaryllis::outbound_http",
+        target: "quantaura::outbound_http",
         context = meta.context,
         method = %meta.method,
         url = %url,

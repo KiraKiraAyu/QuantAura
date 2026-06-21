@@ -49,6 +49,7 @@ async fn test_state_and_cfg() -> (TestRuntimeState, TraderRuntimeConfig) {
         initial_balance: 1000.0,
         btc_eth_leverage: 5,
         altcoin_leverage: 5,
+        is_cross_margin: true,
         trading_symbols: "BTCUSDT,ETHUSDT".to_string(),
         custom_prompt: String::new(),
         override_base_prompt: false,
@@ -892,6 +893,8 @@ struct FakeLiveExchangeAdapter {
     place_order_script: Arc<Mutex<Vec<Result<PlaceOrderResponse, AppError>>>>,
     cancel_order_script:
         Arc<Mutex<Vec<Result<crate::clients::exchanges::CancelOrderResponse, AppError>>>>,
+    symbol_constraints: Arc<Mutex<HashMap<String, ExchangeSymbolConstraints>>>,
+    symbol_setting_calls: Arc<Mutex<Vec<(String, i64, String)>>>,
 }
 
 impl FakeLiveExchangeAdapter {
@@ -916,6 +919,11 @@ impl FakeLiveExchangeAdapter {
     ) {
         let mut guard = self.cancel_order_script.lock().await;
         guard.push(result);
+    }
+
+    async fn set_symbol_constraints(&self, symbol: &str, constraints: ExchangeSymbolConstraints) {
+        let mut guard = self.symbol_constraints.lock().await;
+        guard.insert(symbol.trim().to_uppercase(), constraints);
     }
 }
 
@@ -1005,6 +1013,11 @@ impl LiveExchangeAdapter for FakeLiveExchangeAdapter {
         &self,
         symbol: &str,
     ) -> Result<ExchangeSymbolConstraints, AppError> {
+        let guard = self.symbol_constraints.lock().await;
+        if let Some(constraints) = guard.get(&symbol.trim().to_uppercase()) {
+            return Ok(constraints.clone());
+        }
+
         Ok(ExchangeSymbolConstraints {
             symbol: symbol.trim().to_uppercase(),
             base_asset: "BTC".to_string(),
@@ -1015,6 +1028,25 @@ impl LiveExchangeAdapter for FakeLiveExchangeAdapter {
             min_notional: 5.0,
             tick_size: 0.1,
         })
+    }
+
+    async fn ensure_symbol_settings(
+        &self,
+        symbol: &str,
+        leverage: i64,
+        margin_mode: ExchangeMarginMode,
+    ) -> Result<(), AppError> {
+        let mut guard = self.symbol_setting_calls.lock().await;
+        guard.push((
+            symbol.trim().to_uppercase(),
+            leverage,
+            match margin_mode {
+                ExchangeMarginMode::Cross => "cross",
+                ExchangeMarginMode::Isolated => "isolated",
+            }
+            .to_string(),
+        ));
+        Ok(())
     }
 
     async fn start_user_stream(&self) -> Result<String, AppError> {
@@ -1117,6 +1149,60 @@ async fn test_sync_open_orders_consistency_with_partial_and_metadata_updates() {
     assert_eq!(inserted.side, "BUY".to_string());
     assert_eq!(inserted.position_side, "LONG".to_string());
     assert_eq!(inserted.reduce_only, 0);
+}
+
+#[tokio::test]
+async fn test_preflight_live_symbols_configures_margin_leverage_and_validates_constraints() {
+    let (_, mut cfg) = test_state_and_cfg().await;
+    cfg.is_cross_margin = false;
+    cfg.btc_eth_leverage = 7;
+    cfg.altcoin_leverage = 3;
+
+    let adapter = FakeLiveExchangeAdapter::default();
+
+    preflight_live_symbols(
+        &adapter,
+        &cfg,
+        &["BTCUSDT".to_string(), "SOLUSDT".to_string()],
+    )
+    .await
+    .expect("preflight live symbols");
+
+    let calls = adapter.symbol_setting_calls.lock().await.clone();
+    assert_eq!(
+        calls,
+        vec![
+            ("BTCUSDT".to_string(), 7, "isolated".to_string()),
+            ("SOLUSDT".to_string(), 3, "isolated".to_string()),
+        ]
+    );
+}
+
+#[tokio::test]
+async fn test_preflight_live_symbols_rejects_incomplete_constraints() {
+    let (_, cfg) = test_state_and_cfg().await;
+    let adapter = FakeLiveExchangeAdapter::default();
+    adapter
+        .set_symbol_constraints(
+            "BTCUSDT",
+            ExchangeSymbolConstraints {
+                symbol: "BTCUSDT".to_string(),
+                base_asset: "BTC".to_string(),
+                quote_asset: "USDT".to_string(),
+                min_qty: 0.0,
+                max_qty: 1000.0,
+                step_size: 0.001,
+                min_notional: 5.0,
+                tick_size: 0.1,
+            },
+        )
+        .await;
+
+    let err = preflight_live_symbols(&adapter, &cfg, &["BTCUSDT".to_string()])
+        .await
+        .expect_err("invalid constraints should fail live preflight");
+
+    assert!(err.to_string().contains("invalid symbol constraints"));
 }
 
 #[tokio::test]
@@ -1335,10 +1421,17 @@ async fn test_limit_first_open_prefers_limit_when_filled() {
         }))
         .await;
 
-    let resp =
-        place_live_open_order_limit_first(&adapter, "BTCUSDT", "LONG", 1.0, 100.0, &constraints)
-            .await
-            .expect("limit-first should use filled limit order");
+    let resp = place_live_open_order_limit_first(
+        &adapter,
+        "BTCUSDT",
+        "LONG",
+        1.0,
+        100.0,
+        &constraints,
+        ExchangeMarginMode::Cross,
+    )
+    .await
+    .expect("limit-first should use filled limit order");
 
     assert_eq!(resp.order_id, "lim-1".to_string());
     assert_eq!(resp.order_type, "LIMIT".to_string());
@@ -1383,10 +1476,17 @@ async fn test_limit_first_open_falls_back_to_market_when_limit_fails() {
         }))
         .await;
 
-    let resp =
-        place_live_open_order_limit_first(&adapter, "ETHUSDT", "SHORT", 2.0, 2500.0, &constraints)
-            .await
-            .expect("limit-first should fallback to market");
+    let resp = place_live_open_order_limit_first(
+        &adapter,
+        "ETHUSDT",
+        "SHORT",
+        2.0,
+        2500.0,
+        &constraints,
+        ExchangeMarginMode::Cross,
+    )
+    .await
+    .expect("limit-first should fallback to market");
 
     assert_eq!(resp.order_id, "mkt-1".to_string());
     assert_eq!(resp.order_type, "MARKET".to_string());

@@ -1,21 +1,13 @@
-export interface DebateSession {
-  id: string
-  name: string
-  symbol: string
-  status: string
-  max_rounds: number
-  current_round: number
-  created_at: string
-  final_decision?: string
+import type {
+  DebateMessageItemPayload,
+  DebateSummaryPayload,
+} from "@/types/debates"
+
+export type DebateSession = DebateSummaryPayload & {
   final_reasoning?: string
 }
 
-export interface DebateMessage {
-  round: number
-  personality: string
-  content: string
-  vote: string
-}
+export type DebateMessage = DebateMessageItemPayload
 
 export interface DebateDraft {
   name: string

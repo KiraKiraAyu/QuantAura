@@ -13,9 +13,9 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /app/target/release/amaryllis /app/amaryllis
+COPY --from=builder /app/target/release/quantaura /app/quantaura
 
 RUN mkdir -p /app/data
 
 EXPOSE 8000
-CMD ["./amaryllis"]
+CMD ["./quantaura"]

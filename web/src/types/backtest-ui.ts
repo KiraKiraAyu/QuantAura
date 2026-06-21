@@ -1,3 +1,5 @@
+import type { BacktestRunPayload } from "@/types/backtest"
+
 export interface BacktestConfig {
   symbols: string
   interval: string
@@ -9,12 +11,7 @@ export interface BacktestConfig {
   ai_model_id: string
 }
 
-export interface BacktestRun {
-  run_id: string
-  state: string
-  summary: Record<string, number>
-  created_at: string
-}
+export type BacktestRun = BacktestRunPayload
 
 export interface BacktestLiveProgress {
   run_id: string

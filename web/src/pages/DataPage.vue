@@ -57,19 +57,21 @@ onMounted(async () => {
 
 <template>
   <div
-    class="flex flex-col gap-6 min-h-[calc(100vh-2rem)]"
+    class="flex flex-col gap-6 h-full min-h-0"
   >
     <MarketDataHeader
       v-model:symbol="activeSymbol"
       v-model:interval="activeInterval"
       :symbols="symbols"
       @refresh="loadKlines"
+      class="shrink-0"
     />
 
     <MarketChartPanel
       :loading="loading"
       :data="klines"
       :active-symbol="activeSymbol"
+      class="flex-1 min-h-0"
     />
   </div>
 </template>

@@ -56,7 +56,7 @@ export function useDebatePage() {
     loadingDebates.value = true
     try {
       const data = await getDebatesApi()
-      debates.value = (data.debates ?? []) as unknown as DebateSession[]
+      debates.value = data.debates
     } finally {
       loadingDebates.value = false
     }
@@ -66,7 +66,7 @@ export function useDebatePage() {
     activeDebate.value = debate
     try {
       const data = await getDebateMessagesApi(debate.id)
-      messages.value = (data.messages ?? []) as unknown as DebateMessage[]
+      messages.value = data.messages
     } catch {
       messages.value = []
     }
@@ -111,7 +111,15 @@ export function useDebatePage() {
         event.type === "debate_message" &&
         (event.debate_id as string) === activeDebate.value.id
       ) {
-        messages.value.push(event as unknown as DebateMessage)
+        messages.value.push({
+          id: String(event.id ?? ""),
+          round: Number(event.round ?? 0),
+          personality: String(event.personality ?? ""),
+          role: String(event.role ?? ""),
+          content: String(event.content ?? ""),
+          vote: String(event.vote ?? ""),
+          created_at: Number(event.created_at ?? Math.floor(Date.now() / 1000)),
+        })
       }
       if (
         event.type === "debate_finished" &&

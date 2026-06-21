@@ -2,6 +2,7 @@ import { computed, onMounted, ref, watch } from "vue"
 import { getEquityHistoryApi } from "@/api/competition"
 import {
   closeTraderPositionApi,
+  getPositionsApi,
   getTraderListApi,
   startTraderApi,
   stopTraderApi,
@@ -15,6 +16,7 @@ import type {
   DashboardTrader,
   EquityChartPoint,
 } from "@/types/dashboard-ui"
+import type { EquityHistoryPointPayload } from "@/types/public"
 
 export function useDashboardPage() {
   const realtime = useRealtimeStore()
@@ -24,9 +26,7 @@ export function useDashboardPage() {
   const showCreateTrader = ref(false)
 
   const traders = ref<DashboardTrader[]>([])
-  const positions = ref<DashboardPosition[]>(
-    realtime.positions as DashboardPosition[],
-  )
+  const positions = ref<DashboardPosition[]>([])
   const equity = ref<DashboardEquitySnapshot>({
     equity: 0,
     available_cash: 0,
@@ -48,17 +48,34 @@ export function useDashboardPage() {
     )
   }
 
+  function actionErrorMessage(error: unknown) {
+    const err = error as {
+      response?: { data?: { error?: string }; status?: number }
+      message?: string
+    }
+    const statusMsg = err?.response?.status
+      ? `Request failed (${err.response.status})`
+      : ""
+    return err?.response?.data?.error || statusMsg || err?.message || "Action failed"
+  }
+
+  async function runActionAndReload(action: () => Promise<unknown>) {
+    let actionError: unknown = null
+    try {
+      await action()
+    } catch (error: unknown) {
+      actionError = error
+    }
+    await loadAll()
+    if (actionError) {
+      loadError.value = actionErrorMessage(actionError)
+    }
+  }
+
   async function loadEquityHistory(traderId: string) {
     try {
       const points = await getEquityHistoryApi({ trader_id: traderId })
-      equityHistory.value = points.map((point: any) => ({
-        time:
-          point.ts ??
-          (point.timestamp
-            ? Math.floor(new Date(point.timestamp).getTime() / 1000)
-            : 0),
-        value: point.total_equity ?? point.equity ?? point.value ?? 0,
-      }))
+      equityHistory.value = points.map(equityPoint)
     } catch {
       equityHistory.value = []
     }
@@ -69,9 +86,7 @@ export function useDashboardPage() {
     loadError.value = ""
     try {
       const data = await getTraderListApi()
-      traders.value = Array.isArray(data?.traders)
-        ? (data.traders as unknown as DashboardTrader[])
-        : []
+      traders.value = data.traders
 
       if (traders.value.length === 0) {
         equity.value = {
@@ -81,8 +96,11 @@ export function useDashboardPage() {
           loaded: true,
         }
         positions.value = []
+        realtime.clearPositions()
         return
       }
+
+      await loadOpenPositions(traders.value.map((trader) => trader.id))
 
       if (traders.value.length > 0 && !activeChart.value) {
         activeChart.value = traders.value[0]!.id
@@ -90,6 +108,7 @@ export function useDashboardPage() {
       }
     } catch (error: unknown) {
       traders.value = []
+      positions.value = []
       const err = error as {
         response?: { data?: { error?: string }; status?: number }
         message?: string
@@ -115,26 +134,21 @@ export function useDashboardPage() {
   }
 
   async function startTrader(id: string) {
-    await startTraderApi(id).catch(() => {})
-    await loadAll()
+    await runActionAndReload(() => startTraderApi(id))
   }
 
   async function stopTrader(id: string) {
-    await stopTraderApi(id).catch(() => {})
-    await loadAll()
+    await runActionAndReload(() => stopTraderApi(id))
   }
 
   async function syncBalance(id: string) {
-    await syncTraderBalanceApi(id).catch(() => {})
-    await loadAll()
+    await runActionAndReload(() => syncTraderBalanceApi(id))
   }
 
   async function closePosition(traderId: string, symbol: string, side: string) {
     if (!confirm(`Close ${symbol} position?`)) return
-    await closeTraderPositionApi(traderId, { symbol, side }).catch(() => {})
-    positions.value = positions.value.filter(
-      (position) =>
-        !(position.trader_id === traderId && position.symbol === symbol),
+    await runActionAndReload(() =>
+      closeTraderPositionApi(traderId, { symbol, side }),
     )
   }
 
@@ -151,9 +165,9 @@ export function useDashboardPage() {
   watch(
     () => realtime.positions,
     (value) => {
-      positions.value = value as DashboardPosition[]
+      positions.value = value
     },
-    { deep: true },
+    { deep: true, immediate: true },
   )
   watch(
     () => realtime.equitySnapshot,
@@ -193,6 +207,33 @@ export function useDashboardPage() {
       }
     }, 5000)
   })
+
+  function equityPoint(point: EquityHistoryPointPayload): EquityChartPoint {
+    return {
+      time: Math.floor(new Date(point.timestamp).getTime() / 1000),
+      value: point.total_equity,
+    }
+  }
+
+  async function loadOpenPositions(traderIds: string[]) {
+    const entries = await Promise.all(
+      traderIds.map(async (traderId) => {
+        try {
+          const payload = await getPositionsApi({
+            trader_id: traderId,
+            status: "open",
+          })
+          return [payload.trader_id, payload.items] as const
+        } catch {
+          return [traderId, []] as const
+        }
+      }),
+    )
+
+    realtime.replacePositionsByTrader(
+      Object.fromEntries(entries) as Record<string, DashboardPosition[]>,
+    )
+  }
 
   return {
     activeChart,

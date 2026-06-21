@@ -3,8 +3,8 @@ use std::sync::{Arc, RwLock};
 use crate::{
     contracts::trading::traders::TraderPayload,
     error::{AppError, Result as AppResult},
-    repositories::trading::TradingRepo,
     repositories::trading::records::traders::TraderRecord,
+    repositories::{ExchangeRepo, trading::TradingRepo},
     services::llm::LlmService,
     state::{RuntimeEngineManager, RuntimeEngineState},
 };
@@ -17,6 +17,7 @@ pub struct TradingConfig {
 #[derive(Debug, Clone)]
 pub struct TradingState {
     pub trading_repo: Arc<TradingRepo>,
+    pub exchange_repo: Arc<ExchangeRepo>,
     pub config: TradingConfig,
     pub runtime_engine_manager: Arc<RwLock<RuntimeEngineManager>>,
     pub llm_service: Arc<LlmService>,
@@ -27,12 +28,14 @@ pub type SharedState = TradingState;
 impl TradingState {
     pub fn new(
         trading_repo: Arc<TradingRepo>,
+        exchange_repo: Arc<ExchangeRepo>,
         runtime_alerts: crate::config::RuntimeAlertConfig,
         runtime_engine_manager: Arc<RwLock<RuntimeEngineManager>>,
         llm_service: Arc<LlmService>,
     ) -> Self {
         Self {
             trading_repo,
+            exchange_repo,
             config: TradingConfig { runtime_alerts },
             runtime_engine_manager,
             llm_service,

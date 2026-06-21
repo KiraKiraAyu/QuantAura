@@ -1,4 +1,4 @@
-use amaryllis::*;
+use quantaura::*;
 
 use tokio::net::TcpListener;
 use tracing::{error, info};
@@ -39,7 +39,7 @@ async fn main() {
     };
 
     info!(
-        "AMARYLLIS API listening on http://{} (env={}, app={})",
+        "QUANTAURA API listening on http://{} (env={}, app={})",
         listener
             .local_addr()
             .map(|a| a.to_string())
@@ -58,7 +58,7 @@ async fn main() {
 }
 
 fn init_tracing(log_level: &str) {
-    let filter = format!("amaryllis={log_level},axum={log_level},tower_http={log_level}");
+    let filter = format!("quantaura={log_level},axum={log_level},tower_http={log_level}");
 
     tracing_subscriber::registry()
         .with(

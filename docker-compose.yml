@@ -8,7 +8,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - amaryllis-data:/app/data
+      - quantaura-data:/app/data
       - ./core/private.pem:/app/private.pem:ro
       - ./core/public.pem:/app/public.pem:ro
     restart: always
@@ -24,4 +24,4 @@ services:
     restart: always
 
 volumes:
-  amaryllis-data:
+  quantaura-data:

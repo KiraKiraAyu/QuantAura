@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { Icon } from "@iconify/vue"
-import BaseButton from "@/components/universal/BaseButton.vue"
-import BaseInput from "@/components/universal/BaseInput.vue"
+import Card from "primevue/card"
+import Button from "primevue/button"
+import InputText from "primevue/inputtext"
+import InputNumber from "primevue/inputnumber"
+import Select from "primevue/select"
 import type { EditableStrategy, StrategyConfig } from "@/types/strategy-ui"
 
 const selected = defineModel<EditableStrategy>({ required: true })
@@ -37,123 +39,125 @@ function setSymbols(value: string) {
 </script>
 
 <template>
-  <div>
-    <div class="flex items-center gap-3 mb-4">
-      <h2 class="font-bold flex-1">{{ selected.name }}</h2>
-      <BaseButton
-        @click="emit('activate')"
-        class="py-1.5 text-xs"
-        :disabled="selected.is_active"
-      >
-        <Icon
-          icon="ic:round-check"
-          class="inline-block text-base align-[-0.125em]"
-        />
-        {{ selected.is_active ? "Active" : "Activate" }}
-      </BaseButton>
-      <BaseButton
-        @click="emit('duplicate')"
-        class="py-1.5 text-xs"
-        :disabled="duplicating"
-      >
-        <Icon
-          icon="ic:round-content-copy"
-          class="inline-block text-base align-[-0.125em]"
-        />
-        {{ duplicating ? "..." : "Duplicate" }}
-      </BaseButton>
-      <BaseButton @click="emit('delete')" class="text-error py-1.5 text-xs">
-        <Icon
-          icon="ic:round-delete"
-          class="inline-block text-base align-[-0.125em]"
-        />
-        Delete
-      </BaseButton>
-    </div>
+  <Card class="border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-none!">
+    <template #content>
+      <div class="flex items-center gap-3 mb-6 flex-wrap">
+        <h2 class="font-bold text-xl text-surface-900 dark:text-white flex-1 truncate">{{ selected.name }}</h2>
+        <div class="flex gap-2">
+          <Button
+            icon="pi pi-check"
+            :label="selected.is_active ? 'Active' : 'Activate'"
+            @click="emit('activate')"
+            :disabled="selected.is_active"
+            class="rounded-xl h-10 cursor-pointer"
+          />
+          <Button
+            icon="pi pi-copy"
+            label="Duplicate"
+            severity="secondary"
+            @click="emit('duplicate')"
+            :loading="duplicating"
+            class="rounded-xl h-10 cursor-pointer"
+          />
+          <Button
+            icon="pi pi-trash"
+            label="Delete"
+            severity="danger"
+            @click="emit('delete')"
+            class="rounded-xl h-10 cursor-pointer bg-rose-500! border-rose-500! text-white!"
+          />
+        </div>
+      </div>
 
-    <div class="grid grid-cols-1 gap-3 md:grid-cols-2 mb-4">
-      <div>
-        <label>Name</label>
-        <BaseInput v-model="selected.name" placeholder="Strategy name" />
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-4">
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-bold text-surface-500">Strategy Name</label>
+          <InputText v-model="selected.name" placeholder="Strategy name" class="h-10 rounded-xl" />
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-bold text-surface-500">Description</label>
+          <InputText v-model="selected.description" placeholder="Brief description" class="h-10 rounded-xl" />
+        </div>
       </div>
-      <div>
-        <label>Description</label>
-        <BaseInput
-          v-model="selected.description"
-          placeholder="Brief description"
-        />
-      </div>
-    </div>
 
-    <div class="mb-3">
-      <label>Symbols (comma-separated)</label>
-      <BaseInput
-        :value="getSymbols()"
-        @change="setSymbols(($event.target as HTMLInputElement).value)"
-        placeholder="BTCUSDT,ETHUSDT"
-      />
-    </div>
+      <div class="flex flex-col gap-1.5 mb-4">
+        <label class="text-xs font-bold text-surface-500">Trading Symbols (comma-separated)</label>
+        <InputText
+          :value="getSymbols()"
+          @change="setSymbols(($event.target as HTMLInputElement).value)"
+          placeholder="BTCUSDT,ETHUSDT"
+          class="h-10 rounded-xl font-mono"
+        />
+      </div>
 
-    <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
-      <div>
-        <label>Max Positions</label>
-        <BaseInput
-          v-model.number="getConfig().max_positions"
-          type="number"
-          min="1"
-          max="20"
-        />
+      <div class="grid grid-cols-2 gap-4 sm:grid-cols-4 mb-6">
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-bold text-surface-500">Max Positions</label>
+          <InputNumber
+            v-model="getConfig().max_positions"
+            :min="1"
+            :max="20"
+            showButtons
+            class="h-10 rounded-xl"
+          />
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-bold text-surface-500">BTC/ETH Leverage</label>
+          <InputNumber
+            v-model="getConfig().btc_eth_leverage"
+            :min="1"
+            :max="100"
+            showButtons
+            class="h-10 rounded-xl"
+          />
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-bold text-surface-500">Altcoin Leverage</label>
+          <InputNumber
+            v-model="getConfig().altcoin_leverage"
+            :min="1"
+            :max="100"
+            showButtons
+            class="h-10 rounded-xl"
+          />
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-bold text-surface-500">Prompt Variant</label>
+          <Select
+            v-model="getConfig().prompt_variant"
+            :options="['balanced', 'aggressive', 'conservative']"
+            placeholder="Select variant"
+            class="h-10 rounded-xl flex items-center"
+          />
+        </div>
       </div>
-      <div>
-        <label>BTC/ETH Leverage</label>
-        <BaseInput
-          v-model.number="getConfig().btc_eth_leverage"
-          type="number"
-          min="1"
-          max="100"
-        />
-      </div>
-      <div>
-        <label>Altcoin Leverage</label>
-        <BaseInput
-          v-model.number="getConfig().altcoin_leverage"
-          type="number"
-          min="1"
-          max="100"
-        />
-      </div>
-      <div>
-        <label>Prompt Variant</label>
-        <select v-model="getConfig().prompt_variant">
-          <option value="balanced">Balanced</option>
-          <option value="aggressive">Aggressive</option>
-          <option value="conservative">Conservative</option>
-        </select>
-      </div>
-    </div>
 
-    <div class="flex gap-3 mt-4">
-      <BaseButton @click="emit('save')" :disabled="saving">
-        <Icon
-          icon="ic:round-save"
-          class="inline-block text-base align-[-0.125em]"
+      <div class="flex gap-3 mt-4 border-t border-surface-200 dark:border-surface-800 pt-4">
+        <Button
+          icon="pi pi-save"
+          label="Save Settings"
+          @click="emit('save')"
+          :loading="saving"
+          class="rounded-xl h-11 cursor-pointer flex-1"
         />
-        {{ saving ? "Saving..." : "Save" }}
-      </BaseButton>
-      <BaseButton @click="emit('test')" :disabled="testRunLoading">
-        <Icon
-          icon="ic:round-science"
-          class="inline-block text-base align-[-0.125em]"
+        <Button
+          icon="pi pi-sparkles"
+          label="Test Run (AI)"
+          severity="help"
+          @click="emit('test')"
+          :loading="testRunLoading"
+          class="rounded-xl h-11 cursor-pointer"
         />
-        {{ testRunLoading ? "Running..." : "Test Run (AI)" }}
-      </BaseButton>
-      <BaseButton @click="emit('preview')" :disabled="previewLoading">
-        <Icon
-          icon="ic:round-visibility"
-          class="inline-block text-base align-[-0.125em]"
+        <Button
+          icon="pi pi-eye"
+          label="Preview Prompt"
+          severity="secondary"
+          text
+          @click="emit('preview')"
+          :loading="previewLoading"
+          class="rounded-xl h-11 cursor-pointer"
         />
-        {{ previewLoading ? "Loading..." : "Preview Prompt" }}
-      </BaseButton>
-    </div>
-  </div>
+      </div>
+    </template>
+  </Card>
 </template>

@@ -1,31 +1,21 @@
-export interface StrategyConfig extends Record<string, unknown> {
+import type {
+  StrategyConfigPayload,
+  StrategyDecisionPayload,
+  StrategyPayload,
+  StrategyTestRunPayload,
+} from "@/types/strategies"
+
+export type StrategyConfig = StrategyConfigPayload
+export type EditableStrategy = StrategyPayload
+export type StrategyDecision = StrategyDecisionPayload
+export type StrategyTestResult = StrategyTestRunPayload
+
+export interface StrategyConfigFormFields {
   trading_symbols?: string
   max_positions?: number
   btc_eth_leverage?: number
   altcoin_leverage?: number
   prompt_variant?: string
-}
-
-export interface EditableStrategy {
-  id: string
-  name: string
-  description: string
-  is_active: boolean
-  updated_at: string
-  config: StrategyConfig
-}
-
-export interface StrategyDecision {
-  action: string
-  symbol: string
-  confidence: number
-  reasoning: string
-}
-
-export interface StrategyTestResult {
-  decisions: StrategyDecision[]
-  raw_ai_response?: string
-  duration_ms: number
 }
 
 export interface StrategyPromptPreviewModel {

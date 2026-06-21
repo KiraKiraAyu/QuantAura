@@ -1,5 +1,3 @@
-import type { JsonValue } from "@/types/json"
-
 export interface CreateDebateRequest {
   name?: string | null
   symbol?: string | null
@@ -12,13 +10,43 @@ export interface StartDebateRequest {
   model_ids?: string[] | null
 }
 
+export interface DebateSummaryPayload {
+  id: string
+  name: string
+  symbol: string
+  status: string
+  max_rounds: number
+  current_round: number
+  final_decision: string
+  created_at: number
+}
+
+export interface DebatePayload extends DebateSummaryPayload {
+  prompt_variant: string
+  participants: string[]
+  final_reasoning: string
+  error_message: string
+  updated_at: number
+}
+
+export interface DebateRoundVotePayload {
+  personality: string
+  vote: string
+}
+
+export interface DebateVoteRoundPayload {
+  round: number
+  votes: DebateRoundVotePayload[]
+  tally: Record<string, number>
+}
+
 export interface DebateListPayload {
-  debates: JsonValue[]
+  debates: DebateSummaryPayload[]
   count: number
 }
 
 export interface DebateDetailPayload {
-  debate: JsonValue
+  debate: DebatePayload
 }
 
 export interface DebateActionPayload {
@@ -48,10 +76,20 @@ export interface DebateExecutionPayload {
 }
 
 export interface DebateMessagesPayload {
-  messages: JsonValue[]
+  messages: DebateMessageItemPayload[]
   count: number
 }
 
+export interface DebateMessageItemPayload {
+  id: string
+  round: number
+  personality: string
+  role: string
+  content: string
+  vote: string
+  created_at: number
+}
+
 export interface DebateVotesPayload {
-  votes: JsonValue
+  votes: DebateVoteRoundPayload[]
 }

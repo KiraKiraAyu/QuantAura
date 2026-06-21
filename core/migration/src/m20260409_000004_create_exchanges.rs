@@ -74,48 +74,6 @@ impl MigrationTrait for Migration {
                             .default(""),
                     )
                     .col(
-                        ColumnDef::new(Exchanges::AsterUser)
-                            .string()
-                            .not_null()
-                            .default(""),
-                    )
-                    .col(
-                        ColumnDef::new(Exchanges::AsterSigner)
-                            .string()
-                            .not_null()
-                            .default(""),
-                    )
-                    .col(
-                        ColumnDef::new(Exchanges::AsterPrivateKey)
-                            .string()
-                            .not_null()
-                            .default(""),
-                    )
-                    .col(
-                        ColumnDef::new(Exchanges::LighterWalletAddr)
-                            .string()
-                            .not_null()
-                            .default(""),
-                    )
-                    .col(
-                        ColumnDef::new(Exchanges::LighterPrivateKey)
-                            .string()
-                            .not_null()
-                            .default(""),
-                    )
-                    .col(
-                        ColumnDef::new(Exchanges::LighterApiKeyPrivateKey)
-                            .string()
-                            .not_null()
-                            .default(""),
-                    )
-                    .col(
-                        ColumnDef::new(Exchanges::LighterApiKeyIndex)
-                            .integer()
-                            .not_null()
-                            .default(0),
-                    )
-                    .col(
                         ColumnDef::new(Exchanges::CreatedAt)
                             .timestamp_with_time_zone()
                             .not_null(),
@@ -187,13 +145,6 @@ enum Exchanges {
     Passphrase,
     Testnet,
     HyperliquidWalletAddr,
-    AsterUser,
-    AsterSigner,
-    AsterPrivateKey,
-    LighterWalletAddr,
-    LighterPrivateKey,
-    LighterApiKeyPrivateKey,
-    LighterApiKeyIndex,
     CreatedAt,
     UpdatedAt,
 }

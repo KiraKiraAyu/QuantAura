@@ -51,7 +51,7 @@ function submitAs(nextMode: AuthMode) {
             <span class="text-2xl font-black text-white">A</span>
           </div>
           <h1 class="mb-2 text-3xl font-black text-white">Welcome back</h1>
-          <p class="mb-6 text-sm text-white/55">Sign in to Amaryllis</p>
+          <p class="mb-6 text-sm text-white/55">Sign in to QuantAura</p>
 
           <BaseInput
             v-model="email"
@@ -198,7 +198,7 @@ function submitAs(nextMode: AuthMode) {
           <div
             class="flex h-full w-1/2 flex-col items-center justify-center px-10 text-center"
           >
-            <h2 class="mb-4 text-4xl font-black">New to Amaryllis?</h2>
+            <h2 class="mb-4 text-4xl font-black">New to QuantAura?</h2>
             <p class="mb-8 max-w-xs text-sm text-white/85">
               Create an account to configure models, exchanges, and strategies.
             </p>
@@ -230,7 +230,7 @@ function submitAs(nextMode: AuthMode) {
             {{
               mode === "Register"
                 ? "Start with email and password"
-                : "Sign in to Amaryllis"
+                : "Sign in to QuantAura"
             }}
           </p>
         </div>

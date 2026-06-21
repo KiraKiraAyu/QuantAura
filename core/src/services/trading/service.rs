@@ -14,6 +14,13 @@ pub use uuid::Uuid;
 pub type HmacSha256 = Hmac<Sha256>;
 
 pub use crate::{
+    clients::{
+        binance::normalize_order_quantity_by_constraints,
+        exchanges::{
+            ExchangeCredentials, ExchangeOrderType, ExchangeSide, LiveExchangeAdapter,
+            PlaceOrderRequest, PositionSide, create_exchange_adapter,
+        },
+    },
     contracts::trading::{
         accounts::{
             ClosePositionPayload, ClosePositionRequest, GridRiskInfoPayload,
@@ -71,7 +78,10 @@ pub use crate::{
         EVENT_STALE_INTENT_RECONCILE_PENDING, EVENT_STALE_INTENT_RECONCILE_TERMINAL,
         canonical_runtime_event_types,
     },
-    services::trading_runtime::service::TradingRuntimeService,
+    services::trading_runtime::{
+        config_loaders::exchange_credentials_missing, execution_live::persist_live_order_record,
+        models::TraderRuntimeConfig, service::TradingRuntimeService,
+    },
     state::{RuntimeEngineManager, RuntimeEngineState},
 };
 
@@ -89,6 +99,7 @@ pub struct TradingService {
 impl TradingService {
     pub fn new(
         trading_repo: Arc<crate::repositories::TradingRepo>,
+        exchange_repo: Arc<crate::repositories::ExchangeRepo>,
         runtime_alerts: crate::config::RuntimeAlertConfig,
         runtime_engine_manager: Arc<RwLock<RuntimeEngineManager>>,
         llm_service: Arc<crate::services::llm::LlmService>,
@@ -97,6 +108,7 @@ impl TradingService {
         Self {
             state: TradingState::new(
                 trading_repo,
+                exchange_repo,
                 runtime_alerts,
                 runtime_engine_manager,
                 llm_service,
@@ -192,7 +204,14 @@ impl TradingService {
         req: ClosePositionRequest,
     ) -> AppResult<ClosePositionPayload> {
         let state = self.state();
-        close_position(&state, user_id, id, req).await
+        close_position(
+            &state,
+            self.trading_runtime_service.as_ref(),
+            user_id,
+            id,
+            req,
+        )
+        .await
     }
 
     pub async fn grid_risk_info(&self, user_id: &str, id: &str) -> AppResult<GridRiskInfoPayload> {

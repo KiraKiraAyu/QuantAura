@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { Icon } from "@iconify/vue"
-import BaseButton from "@/components/universal/BaseButton.vue"
-import BaseInput from "@/components/universal/BaseInput.vue"
+import Dialog from "primevue/dialog"
+import InputText from "primevue/inputtext"
+import InputNumber from "primevue/inputnumber"
+import Button from "primevue/button"
 import type { DebateDraft } from "@/types/debate-ui"
 
 defineProps<{
@@ -20,68 +21,73 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div
-    class="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/60"
+  <Dialog
+    visible
+    modal
+    header="Create AI Debate Session"
+    class="w-full max-w-md border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-xl rounded-2xl p-6"
+    :closable="true"
+    @update:visible="emit('close')"
   >
-    <div class="w-full max-w-md">
-      <h2 class="font-bold mb-4">Create Debate</h2>
-      <div class="flex flex-col gap-3">
-        <div>
-          <label>Name</label>
-          <BaseInput v-model="draft.name" placeholder="BTC Bull/Bear Debate" />
-        </div>
-        <div>
-          <label>Symbol</label>
-          <BaseInput v-model="draft.symbol" placeholder="BTCUSDT" />
-        </div>
-        <div>
-          <label>Max Rounds</label>
-          <BaseInput
-            v-model.number="draft.max_rounds"
-            type="number"
-            min="1"
-            max="10"
+    <div class="flex flex-col gap-4 mt-3">
+      <div class="flex flex-col gap-1.5">
+        <label class="text-xs font-bold text-surface-500">Debate Name</label>
+        <InputText v-model="draft.name" placeholder="BTC Bull/Bear Debate" class="h-10 rounded-xl" />
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label class="text-xs font-bold text-surface-500">Symbol</label>
+        <InputText v-model="draft.symbol" placeholder="BTCUSDT" class="h-10 rounded-xl font-mono" />
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label class="text-xs font-bold text-surface-500">Max Rounds</label>
+        <InputNumber
+          v-model="draft.max_rounds"
+          :min="1"
+          :max="10"
+          showButtons
+          class="h-10 rounded-xl"
+        />
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label class="text-xs font-bold text-surface-500 mb-1">Participants</label>
+        <div class="flex flex-wrap gap-2">
+          <Button
+            v-for="personality in personalities"
+            :key="personality"
+            @click="emit('togglePersonality', personality)"
+            :label="personalityEmoji(personality) + ' ' + personality"
+            text
+            size="small"
+            class="px-3 py-1.5 rounded-lg text-xs font-semibold! cursor-pointer"
+            :class="
+              draft.participants.includes(personality)
+                ? 'bg-primary! text-primary-contrast!'
+                : 'bg-surface-50 dark:bg-surface-950 text-surface-600 dark:text-surface-400 border border-surface-200 dark:border-surface-800 hover:text-primary'
+            "
           />
         </div>
-        <div>
-          <label>Participants</label>
-          <div class="flex flex-wrap gap-2">
-            <BaseButton
-              v-for="personality in personalities"
-              :key="personality"
-              @click="emit('togglePersonality', personality)"
-              class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-              :class="
-                draft.participants.includes(personality)
-                  ? 'bg-surface-overlay text-accent border border-accent'
-                  : 'border border-border-subtle text-text-muted'
-              "
-            >
-              {{ personalityEmoji(personality) }} {{ personality }}
-            </BaseButton>
-          </div>
-        </div>
-        <div class="flex gap-3 mt-2">
-          <BaseButton
-            @click="emit('create')"
-            class="flex-1"
-            :disabled="creating"
-          >
-            <Icon
-              icon="ic:round-check"
-              class="inline-block text-base align-[-0.125em]"
-            />
-            {{ creating ? "Creating..." : "Create" }}
-          </BaseButton>
-          <BaseButton @click="emit('close')">
-            <Icon
-              icon="ic:round-close"
-              class="inline-block text-base align-[-0.125em]"
-            />
-            Cancel
-          </BaseButton>
-        </div>
+      </div>
+
+      <div class="flex gap-3 mt-4 border-t border-surface-200 dark:border-surface-800 pt-4">
+        <Button
+          label="Create"
+          icon="pi pi-check"
+          :loading="creating"
+          @click="emit('create')"
+          class="flex-1 rounded-xl h-11 cursor-pointer"
+        />
+        <Button
+          label="Cancel"
+          icon="pi pi-times"
+          severity="secondary"
+          text
+          @click="emit('close')"
+          class="rounded-xl h-11 cursor-pointer"
+        />
       </div>
     </div>
-  </div>
+  </Dialog>
 </template>

@@ -20,20 +20,6 @@ pub struct ExchangeConfigPatch {
     pub testnet: bool,
     #[serde(default)]
     pub hyperliquid_wallet_addr: String,
-    #[serde(default)]
-    pub aster_user: String,
-    #[serde(default)]
-    pub aster_signer: String,
-    #[serde(default)]
-    pub aster_private_key: String,
-    #[serde(default)]
-    pub lighter_wallet_addr: String,
-    #[serde(default)]
-    pub lighter_private_key: String,
-    #[serde(default)]
-    pub lighter_api_key_private_key: String,
-    #[serde(default)]
-    pub lighter_api_key_index: i64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -53,20 +39,6 @@ pub struct CreateExchangeRequest {
     pub testnet: bool,
     #[serde(default)]
     pub hyperliquid_wallet_addr: String,
-    #[serde(default)]
-    pub aster_user: String,
-    #[serde(default)]
-    pub aster_signer: String,
-    #[serde(default)]
-    pub aster_private_key: String,
-    #[serde(default)]
-    pub lighter_wallet_addr: String,
-    #[serde(default)]
-    pub lighter_private_key: String,
-    #[serde(default)]
-    pub lighter_api_key_private_key: String,
-    #[serde(default)]
-    pub lighter_api_key_index: i64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -81,14 +53,6 @@ pub struct SafeExchangeConfig {
     pub testnet: bool,
     #[serde(rename = "hyperliquidWalletAddr")]
     pub hyperliquid_wallet_addr: String,
-    #[serde(rename = "asterUser")]
-    pub aster_user: String,
-    #[serde(rename = "asterSigner")]
-    pub aster_signer: String,
-    #[serde(rename = "lighterWalletAddr")]
-    pub lighter_wallet_addr: String,
-    #[serde(rename = "lighterApiKeyIndex")]
-    pub lighter_api_key_index: i64,
 }
 
 #[derive(Debug, Clone, Serialize)]

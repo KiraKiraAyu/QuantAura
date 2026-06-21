@@ -17,8 +17,11 @@ pub use uuid::Uuid;
 
 pub use crate::{
     clients::exchanges::{
-        ExchangeCredentials, ExchangeOrderType, ExchangeSide, ExchangeSymbolConstraints,
-        LiveExchangeAdapter, PlaceOrderRequest, PositionSide, TimeInForce, create_exchange_adapter,
+        ExchangeAccountBalanceUpdate, ExchangeAccountPositionUpdate, ExchangeAccountStreamUpdate,
+        ExchangeCredentials, ExchangeMarginMode, ExchangeOrderStreamUpdate, ExchangeOrderType,
+        ExchangeSide, ExchangeSymbolConstraints, ExchangeUserStreamEvent,
+        ExchangeUserStreamSession, LiveExchangeAdapter, PlaceOrderRequest, PositionSide,
+        TimeInForce, create_exchange_adapter, spawn_exchange_user_stream_reader,
     },
     error::AppError,
     realtime::RealtimeHub,
@@ -141,6 +144,8 @@ impl TradingRuntimeService {
             ));
         }
 
+        let _ = load_runtime_execution_context(&state, &cfg).await?;
+
         {
             let workers = self.inner.workers.lock().await;
             if workers.contains_key(trader_id) {
@@ -166,8 +171,26 @@ impl TradingRuntimeService {
         let engine = self.clone();
         let cfg_for_task = cfg.clone();
         let handle = tokio::spawn(async move {
-            if let Err(err) = run_trader_loop(engine, cfg_for_task, stop_rx).await {
+            if let Err(err) = run_trader_loop(engine.clone(), cfg_for_task.clone(), stop_rx).await {
                 error!("runtime loop failed: {err}");
+                if let Err(db_err) = set_trader_running(
+                    &engine.inner.state,
+                    &cfg_for_task.trader_id,
+                    &cfg_for_task.user_id,
+                    false,
+                )
+                .await
+                {
+                    warn!(
+                        "failed to clear running flag after runtime error trader={} err={}",
+                        cfg_for_task.trader_id, db_err
+                    );
+                }
+                let _ = engine.inner.state.set_runtime_engine_running(
+                    &cfg_for_task.trader_id,
+                    false,
+                    Some(format!("runtime loop failed: {err}")),
+                );
             }
         });
 

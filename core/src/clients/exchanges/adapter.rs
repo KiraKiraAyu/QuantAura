@@ -1,12 +1,19 @@
 use async_trait::async_trait;
 
-use crate::{clients::binance::BinanceFuturesAdapter, error::AppError};
+use crate::{
+    clients::{
+        binance::BinanceFuturesAdapter, bitget::BitgetFuturesAdapter,
+        hyperliquid::HyperliquidAdapter, okx::OkxFuturesAdapter,
+    },
+    error::AppError,
+};
 
 use super::types::{
-    CancelOrderResponse, ExchangeBalance, ExchangeCredentials, ExchangeOpenOrder,
-    ExchangeOrderDetail, ExchangePosition, ExchangeSymbolConstraints, ExchangeTradeFill,
-    PlaceOrderRequest, PlaceOrderResponse,
+    CancelOrderResponse, ExchangeBalance, ExchangeCredentials, ExchangeMarginMode,
+    ExchangeOpenOrder, ExchangeOrderDetail, ExchangePosition, ExchangeSymbolConstraints,
+    ExchangeTradeFill, PlaceOrderRequest, PlaceOrderResponse,
 };
+use super::user_stream::ExchangeUserStreamSession;
 
 #[async_trait]
 pub trait LiveExchangeAdapter: Send + Sync {
@@ -40,10 +47,45 @@ pub trait LiveExchangeAdapter: Send + Sync {
         &self,
         symbol: &str,
     ) -> Result<ExchangeSymbolConstraints, AppError>;
+    async fn ensure_symbol_settings(
+        &self,
+        _symbol: &str,
+        _leverage: i64,
+        _margin_mode: ExchangeMarginMode,
+    ) -> Result<(), AppError> {
+        Ok(())
+    }
     async fn start_user_stream(&self) -> Result<String, AppError>;
     async fn keepalive_user_stream(&self, listen_key: &str) -> Result<(), AppError>;
     async fn close_user_stream(&self, listen_key: &str) -> Result<(), AppError>;
     fn user_stream_ws_url(&self, listen_key: &str) -> Result<String, AppError>;
+    async fn user_stream_session(&self) -> Result<ExchangeUserStreamSession, AppError> {
+        let listen_key = self.start_user_stream().await?;
+        let ws_url = self.user_stream_ws_url(&listen_key)?;
+        Ok(ExchangeUserStreamSession::listen_key(
+            self.exchange_type(),
+            ws_url,
+            listen_key,
+        ))
+    }
+    async fn keepalive_user_stream_session(
+        &self,
+        session: &ExchangeUserStreamSession,
+    ) -> Result<(), AppError> {
+        if let Some(listen_key) = session.listen_key.as_deref() {
+            self.keepalive_user_stream(listen_key).await?;
+        }
+        Ok(())
+    }
+    async fn close_user_stream_session(
+        &self,
+        session: &ExchangeUserStreamSession,
+    ) -> Result<(), AppError> {
+        if let Some(listen_key) = session.listen_key.as_deref() {
+            self.close_user_stream(listen_key).await?;
+        }
+        Ok(())
+    }
 }
 
 pub fn create_exchange_adapter(
@@ -52,6 +94,10 @@ pub fn create_exchange_adapter(
 ) -> Result<Box<dyn LiveExchangeAdapter>, AppError> {
     match exchange_type.to_ascii_lowercase().as_str() {
         "binance" => Ok(Box::new(BinanceFuturesAdapter::new(credentials)?)),
+        "aster" => Ok(Box::new(BinanceFuturesAdapter::new_aster(credentials)?)),
+        "okx" => Ok(Box::new(OkxFuturesAdapter::new(credentials)?)),
+        "bitget" => Ok(Box::new(BitgetFuturesAdapter::new(credentials)?)),
+        "hyperliquid" => Ok(Box::new(HyperliquidAdapter::new(credentials)?)),
         other => Err(AppError::UnsupportedExchange(other.to_string())),
     }
 }

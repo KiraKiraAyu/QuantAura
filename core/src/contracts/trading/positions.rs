@@ -6,9 +6,10 @@ pub struct PositionQuery {
     pub status: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PositionPayload {
     pub id: String,
+    pub trader_id: String,
     pub symbol: String,
     pub side: String,
     pub quantity: f64,

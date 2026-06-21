@@ -1,19 +1,26 @@
 <script setup lang="ts">
-import BaseInput from "@/components/universal/BaseInput.vue"
-import { Icon } from "@iconify/vue"
-import BaseButton from "@/components/universal/BaseButton.vue"
+import Dialog from "primevue/dialog"
+import InputText from "primevue/inputtext"
+import InputNumber from "primevue/inputnumber"
+import Select from "primevue/select"
+import Checkbox from "primevue/checkbox"
+import Button from "primevue/button"
 import { ref, onMounted } from "vue"
 import { getExchangeConfigsApi } from "@/api/exchanges"
 import { getModelConfigsApi } from "@/api/models"
 import { getStrategiesApi } from "@/api/strategies"
 import { createTraderApi } from "@/api/trading"
+import type { SafeExchangeConfig } from "@/types/exchanges"
+import type { ModelConfigPayload } from "@/types/models"
+import type { StrategyListPayload, StrategyPayload } from "@/types/strategies"
+import type { CreateTraderRequest } from "@/types/trading"
 
 const emit = defineEmits(["close", "created"])
 
 const loading = ref(false)
 const error = ref("")
-const exchanges = ref<Record<string, unknown>[]>([])
-const strategies = ref<Record<string, unknown>[]>([])
+const exchanges = ref<SafeExchangeConfig[]>([])
+const strategies = ref<StrategyPayload[]>([])
 const models = ref<{ id: string; label: string }[]>([])
 const form = ref({
   name: "",
@@ -34,10 +41,11 @@ async function submit() {
     return
   }
   try {
-    await createTraderApi({
+    const payload: CreateTraderRequest = {
       ...form.value,
       strategy_id: form.value.strategy_id || undefined,
-    } as any)
+    }
+    await createTraderApi(payload)
     emit("created")
   } catch (e: unknown) {
     error.value = e instanceof Error ? e.message : "Failed to create trader"
@@ -48,16 +56,16 @@ async function submit() {
 
 onMounted(async () => {
   const [exRes, stRes, modelRes] = await Promise.all([
-    getExchangeConfigsApi().catch(() => [] as any[]),
-    getStrategiesApi().catch(() => ({ strategies: [] }) as any),
-    getModelConfigsApi().catch(() => ({ providers: [] }) as any),
+    getExchangeConfigsApi().catch((): SafeExchangeConfig[] => []),
+    getStrategiesApi().catch(
+      (): StrategyListPayload => ({ strategies: [], count: 0 }),
+    ),
+    getModelConfigsApi().catch((): ModelConfigPayload => ({ providers: [] })),
   ])
-  exchanges.value = Array.isArray(exRes) ? exRes : []
-  strategies.value = Array.isArray(stRes?.strategies) ? stRes.strategies : []
+  exchanges.value = exRes
+  strategies.value = stRes.strategies
 
-  const providerItems = Array.isArray(modelRes?.providers)
-    ? modelRes.providers
-    : []
+  const providerItems = modelRes.providers
   const enabledModels = providerItems.flatMap(
     (provider: {
       name?: string
@@ -87,101 +95,128 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div
-    class="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/60"
+  <Dialog
+    visible
+    modal
+    header="Create AI Trader"
+    class="w-full max-w-lg border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-xl rounded-2xl p-6"
+    :closable="true"
+    @update:visible="emit('close')"
   >
-    <div class="w-full max-w-lg">
-      <h2 class="font-bold mb-5">Create Trader</h2>
-      <form @submit.prevent="submit" class="flex flex-col gap-4">
-        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <div>
-            <label>Name</label>
-            <BaseInput
-              v-model="form.name"
-             
-              placeholder="My AI Trader"
-              required
-            />
-          </div>
-          <div>
-            <label>Exchange</label>
-            <select v-model="form.exchange_id" required>
-              <option value="">Select exchange…</option>
-              <option
-                v-for="ex in exchanges"
-                :key="ex.id as string"
-                :value="ex.id as string"
-              >
-                {{
-                  (ex.account_name as string) || (ex.exchange_type as string)
-                }}
-              </option>
-            </select>
-          </div>
-          <div>
-            <label>AI Model</label>
-            <select v-model="form.ai_model_id">
-              <option value="">Select model…</option>
-              <option v-for="m in models" :key="m.id" :value="m.id">
-                {{ m.label }}
-              </option>
-            </select>
-          </div>
-          <div>
-            <label>Strategy</label>
-            <select v-model="form.strategy_id">
-              <option value="">No strategy</option>
-              <option
-                v-for="s in strategies"
-                :key="s.id as string"
-                :value="s.id as string"
-              >
-                {{ s.name as string }}
-              </option>
-            </select>
-          </div>
-          <div>
-            <label>Scan Interval (min)</label>
-            <BaseInput
-              v-model.number="form.scan_interval_minutes"
-              type="number"
-             
-              min="1"
-              max="1440"
-            />
-          </div>
-          <div>
-            <label>Initial Balance (USDT)</label>
-            <BaseInput
-              v-model.number="form.initial_balance"
-              type="number"
-             
-              min="10"
-            />
-          </div>
+    <form @submit.prevent="submit" class="flex flex-col gap-5 mt-3">
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-bold text-surface-500 dark:text-surface-400">Trader Name</label>
+          <InputText
+            v-model="form.name"
+            placeholder="My AI Trader"
+            required
+            class="h-10 rounded-xl"
+          />
         </div>
 
-        <div class="flex items-center gap-3">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <BaseInput type="checkbox" v-model="form.show_in_competition" />
-            <span class="text-sm">Show in leaderboard</span>
-          </label>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-bold text-surface-500 dark:text-surface-400">Exchange Account</label>
+          <Select
+            v-model="form.exchange_id"
+            :options="exchanges"
+            optionLabel="account_name"
+            optionValue="id"
+            placeholder="Select exchange..."
+            required
+            class="h-10 rounded-xl flex items-center"
+          >
+            <template #option="{ option }">
+              {{ option.account_name || option.exchange_type }}
+            </template>
+          </Select>
         </div>
 
-        <p v-if="error" class="text-xs text-[--color-error]">
-          {{ error }}
-        </p>
-
-        <div class="flex gap-3 mt-1">
-          <BaseButton type="submit" class="flex-1" :disabled="loading">
-            <Icon icon="ic:round-check" class="inline-block text-base align-[-0.125em]" />
-            {{ loading ? "Creating…" : " Create Trader" }}
-          </BaseButton>
-          <BaseButton type="button" @click="$emit('close')">
-            <Icon icon="ic:round-close" class="inline-block text-base align-[-0.125em]" /> Cancel
-          </BaseButton>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-bold text-surface-500 dark:text-surface-400">AI Model</label>
+          <Select
+            v-model="form.ai_model_id"
+            :options="models"
+            optionLabel="label"
+            optionValue="id"
+            placeholder="Select model..."
+            required
+            class="h-10 rounded-xl flex items-center"
+          />
         </div>
-      </form>
-    </div>
-  </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-bold text-surface-500 dark:text-surface-400">Trading Strategy</label>
+          <Select
+            v-model="form.strategy_id"
+            :options="[{ id: '', name: 'No strategy (Default)' }, ...strategies]"
+            optionLabel="name"
+            optionValue="id"
+            placeholder="Select strategy..."
+            class="h-10 rounded-xl flex items-center"
+          />
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-bold text-surface-500 dark:text-surface-400">Scan Interval (minutes)</label>
+          <InputNumber
+            v-model="form.scan_interval_minutes"
+            :min="1"
+            :max="1440"
+            showButtons
+            buttonLayout="horizontal"
+            class="h-10 rounded-xl"
+            inputClass="text-center font-mono"
+          />
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-bold text-surface-500 dark:text-surface-400">Initial Balance (USDT)</label>
+          <InputNumber
+            v-model="form.initial_balance"
+            :min="10"
+            mode="currency"
+            currency="USD"
+            locale="en-US"
+            class="h-10 rounded-xl"
+            inputClass="font-mono"
+          />
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 mt-1">
+        <Checkbox
+          v-model="form.show_in_competition"
+          binary
+          inputId="show_in_competition"
+        />
+        <label for="show_in_competition" class="text-xs font-semibold text-surface-600 dark:text-surface-400 cursor-pointer select-none">
+          Show this trader in the competition leaderboard
+        </label>
+      </div>
+
+      <p v-if="error" class="text-xs text-rose-500 bg-rose-50 dark:bg-rose-950/20 px-3 py-2 rounded-xl">
+        {{ error }}
+      </p>
+
+      <div class="flex gap-3 mt-3 border-t border-surface-200 dark:border-surface-800 pt-4">
+        <Button
+          type="submit"
+          label="Create Trader"
+          icon="pi pi-check"
+          :loading="loading"
+          class="flex-1 rounded-xl h-11 cursor-pointer"
+        />
+        <Button
+          type="button"
+          label="Cancel"
+          icon="pi pi-times"
+          severity="secondary"
+          text
+          @click="emit('close')"
+          class="rounded-xl h-11 cursor-pointer"
+        />
+      </div>
+    </form>
+  </Dialog>
 </template>

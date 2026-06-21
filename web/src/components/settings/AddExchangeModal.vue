@@ -1,8 +1,12 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue"
-import { Icon } from "@iconify/vue"
-import BaseButton from "@/components/universal/BaseButton.vue"
-import BaseInput from "@/components/universal/BaseInput.vue"
+import { computed, onMounted, ref, watch } from "vue"
+import Dialog from "primevue/dialog"
+import Select from "primevue/select"
+import InputText from "primevue/inputtext"
+import Password from "primevue/password"
+import Checkbox from "primevue/checkbox"
+import Button from "primevue/button"
+
 import { getSupportedExchangesApi } from "@/api/catalog"
 import { createExchangeApi } from "@/api/exchanges"
 import type { CreateExchangeRequest } from "@/types/exchanges"
@@ -20,7 +24,24 @@ const newEx = ref<CreateExchangeRequest>({
   account_name: "",
   api_key: "",
   secret_key: "",
+  testnet: true,
 })
+
+const exchangeOptions = computed(() => 
+  supportedExchanges.value.map(e => ({
+    label: `${e.name} (${e.type})`,
+    value: e.id
+  }))
+)
+
+const requiresPassphrase = computed(() =>
+  ["okx", "bitget"].includes(newEx.value.exchange_type),
+)
+const isHyperliquid = computed(
+  () => newEx.value.exchange_type === "hyperliquid",
+)
+const usesApiCredentials = computed(() => !isHyperliquid.value)
+const supportsTestnet = computed(() => newEx.value.exchange_type !== "aster")
 
 async function addExchange() {
   addingEx.value = true
@@ -43,60 +64,105 @@ async function loadSupportedExchanges() {
 }
 
 onMounted(loadSupportedExchanges)
+
+watch(
+  () => newEx.value.exchange_type,
+  (exchangeType) => {
+    newEx.value.api_key = ""
+    newEx.value.secret_key = ""
+    newEx.value.passphrase = ""
+    newEx.value.hyperliquid_wallet_addr = ""
+    if (exchangeType === "aster") {
+      newEx.value.testnet = false
+    } else if (newEx.value.testnet == null) {
+      newEx.value.testnet = true
+    }
+  },
+)
 </script>
 
 <template>
-  <div
-    class="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/60"
+  <Dialog
+    visible
+    modal
+    header="Add Exchange"
+    :style="{ width: '32rem', maxWidth: '90vw' }"
+    @update:visible="emit('close')"
   >
-    <div class="w-full max-w-md">
-      <h2 class="font-bold mb-4">Add Exchange</h2>
-      <div class="flex flex-col gap-3">
-        <div>
-          <label>Exchange Type</label>
-          <select v-model="newEx.exchange_type">
-            <option
-              v-for="exchange in supportedExchanges"
-              :key="exchange.id"
-              :value="exchange.id"
-            >
-              {{ exchange.name }} ({{ exchange.type }})
-            </option>
-          </select>
-        </div>
-        <div>
-          <label>Account Name</label>
-          <BaseInput v-model="newEx.account_name" placeholder="My Binance" />
-        </div>
-        <div>
-          <label>API Key</label>
-          <BaseInput v-model="newEx.api_key" placeholder="api key…" />
-        </div>
-        <div>
-          <label>Secret Key</label>
-          <BaseInput
-            v-model="newEx.secret_key"
-            type="password"
-            placeholder="secret…"
-          />
-        </div>
-        <div class="flex gap-3">
-          <BaseButton @click="addExchange" class="flex-1" :disabled="addingEx">
-            <Icon
-              icon="ic:round-add"
-              class="inline-block text-base align-[-0.125em]"
-            />
-            {{ addingEx ? "Adding…" : "Add" }}
-          </BaseButton>
-          <BaseButton @click="emit('close')">
-            <Icon
-              icon="ic:round-close"
-              class="inline-block text-base align-[-0.125em]"
-            />
-            Cancel
-          </BaseButton>
-        </div>
+    <div class="flex flex-col gap-4 py-2">
+      <div class="flex flex-col gap-2">
+        <label class="text-sm font-semibold text-surface-700 dark:text-surface-300">Exchange Type</label>
+        <Select
+          v-model="newEx.exchange_type"
+          :options="exchangeOptions"
+          optionLabel="label"
+          optionValue="value"
+          class="w-full"
+        />
+      </div>
+
+      <div class="flex flex-col gap-2">
+        <label class="text-sm font-semibold text-surface-700 dark:text-surface-300">Account Name</label>
+        <InputText v-model="newEx.account_name" placeholder="My Binance" />
+      </div>
+
+      <div v-if="usesApiCredentials" class="flex flex-col gap-2">
+        <label class="text-sm font-semibold text-surface-700 dark:text-surface-300">API Key</label>
+        <InputText v-model="newEx.api_key" placeholder="api key…" />
+      </div>
+
+      <div v-if="usesApiCredentials" class="flex flex-col gap-2">
+        <label class="text-sm font-semibold text-surface-700 dark:text-surface-300">Secret Key</label>
+        <Password
+          v-model="newEx.secret_key"
+          placeholder="secret…"
+          toggleMask
+          :feedback="false"
+          fluid
+        />
+      </div>
+
+      <div v-if="requiresPassphrase" class="flex flex-col gap-2">
+        <label class="text-sm font-semibold text-surface-700 dark:text-surface-300">Passphrase</label>
+        <Password
+          v-model="newEx.passphrase"
+          placeholder="passphrase…"
+          toggleMask
+          :feedback="false"
+          fluid
+        />
+      </div>
+
+      <div v-if="isHyperliquid" class="flex flex-col gap-2">
+        <label class="text-sm font-semibold text-surface-700 dark:text-surface-300">Wallet Address</label>
+        <InputText
+          v-model="newEx.hyperliquid_wallet_addr"
+          placeholder="0x…"
+        />
+      </div>
+
+      <div v-if="isHyperliquid" class="flex flex-col gap-2">
+        <label class="text-sm font-semibold text-surface-700 dark:text-surface-300">Private Key</label>
+        <Password
+          v-model="newEx.secret_key"
+          placeholder="private key…"
+          toggleMask
+          :feedback="false"
+          fluid
+        />
+      </div>
+
+      <div v-if="supportsTestnet" class="flex items-center gap-2 mt-2">
+        <Checkbox v-model="newEx.testnet" inputId="testnet" :binary="true" />
+        <label for="testnet" class="text-sm cursor-pointer text-surface-700 dark:text-surface-300">Use testnet</label>
       </div>
     </div>
-  </div>
+
+    <template #footer>
+      <div class="flex justify-end gap-2 mt-4">
+        <Button label="Cancel" icon="pi pi-times" severity="secondary" @click="emit('close')" />
+        <Button :label="addingEx ? 'Adding…' : 'Add'" icon="pi pi-check" :loading="addingEx" @click="addExchange" />
+      </div>
+    </template>
+  </Dialog>
 </template>

@@ -15,11 +15,6 @@ pub fn supported_exchanges() -> Vec<SupportedExchangePayload> {
             exchange_kind: "cex".to_string(),
         },
         SupportedExchangePayload {
-            id: "bybit".to_string(),
-            name: "Bybit".to_string(),
-            exchange_kind: "cex".to_string(),
-        },
-        SupportedExchangePayload {
             id: "okx".to_string(),
             name: "OKX".to_string(),
             exchange_kind: "cex".to_string(),
@@ -27,16 +22,6 @@ pub fn supported_exchanges() -> Vec<SupportedExchangePayload> {
         SupportedExchangePayload {
             id: "bitget".to_string(),
             name: "Bitget".to_string(),
-            exchange_kind: "cex".to_string(),
-        },
-        SupportedExchangePayload {
-            id: "kucoin".to_string(),
-            name: "KuCoin".to_string(),
-            exchange_kind: "cex".to_string(),
-        },
-        SupportedExchangePayload {
-            id: "gate".to_string(),
-            name: "Gate".to_string(),
             exchange_kind: "cex".to_string(),
         },
         SupportedExchangePayload {
@@ -49,10 +34,23 @@ pub fn supported_exchanges() -> Vec<SupportedExchangePayload> {
             name: "Aster DEX".to_string(),
             exchange_kind: "dex".to_string(),
         },
-        SupportedExchangePayload {
-            id: "lighter".to_string(),
-            name: "Lighter".to_string(),
-            exchange_kind: "dex".to_string(),
-        },
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn supported_exchanges_only_include_current_targets() {
+        let ids = supported_exchanges()
+            .into_iter()
+            .map(|exchange| exchange.id)
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            ids,
+            vec!["binance", "okx", "bitget", "hyperliquid", "aster"]
+        );
+    }
 }

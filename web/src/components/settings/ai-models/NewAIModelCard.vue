@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { Icon } from "@iconify/vue"
-import BaseButton from "@/components/universal/BaseButton.vue"
-import BaseInput from "@/components/universal/BaseInput.vue"
+import Button from "primevue/button"
+import InputText from "primevue/inputtext"
 import type { LlmModel } from "@/types/ai-models-ui"
 
 defineProps<{
@@ -15,35 +14,41 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div
-    class="mb-4 rounded-md border border-dashed border-[--color-border-subtle] bg-[--color-surface] p-4"
-  >
-    <h4 class="mb-2 text-sm font-semibold">New Model</h4>
-    <BaseInput
-      v-model="model.name"
-      label="Display Name"
-      placeholder="GPT-4 Turbo"
-    />
-    <BaseInput
-      v-model="model.modelId"
-      label="Model ID"
-      placeholder="gpt-4-turbo-preview"
-    />
-    <div class="mt-2 flex justify-end gap-2">
-      <BaseButton class="text-xs px-3 py-1.5" @click="emit('cancelAddModel')">
-        <Icon
-          icon="ic:round-close"
-          class="inline-block text-base align-[-0.125em]"
+  <div class="mb-4 rounded-md border border-dashed border-surface-300 dark:border-surface-600 bg-surface-0 dark:bg-surface-900 p-4">
+    <h4 class="mb-3 text-sm font-semibold text-surface-900 dark:text-surface-0">New Model</h4>
+    
+    <div class="flex flex-col gap-3">
+      <div class="flex flex-col gap-1">
+        <label class="text-sm font-medium text-surface-700 dark:text-surface-300">Display Name</label>
+        <InputText
+          v-model="model.name"
+          placeholder="GPT-4 Turbo"
         />
-        Cancel
-      </BaseButton>
-      <BaseButton class="text-xs px-3 py-1.5" @click="emit('saveNewModel')">
-        <Icon
-          icon="ic:round-check"
-          class="inline-block text-base align-[-0.125em]"
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="text-sm font-medium text-surface-700 dark:text-surface-300">Model ID</label>
+        <InputText
+          v-model="model.modelId"
+          placeholder="gpt-4-turbo-preview"
         />
-        Save
-      </BaseButton>
+      </div>
+    </div>
+    
+    <div class="mt-4 flex justify-end gap-2">
+      <Button 
+        label="Cancel" 
+        icon="pi pi-times" 
+        severity="secondary" 
+        variant="outlined" 
+        size="small"
+        @click="emit('cancelAddModel')" 
+      />
+      <Button 
+        label="Save" 
+        icon="pi pi-check" 
+        size="small"
+        @click="emit('saveNewModel')" 
+      />
     </div>
   </div>
 </template>

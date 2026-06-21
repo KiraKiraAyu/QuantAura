@@ -10,10 +10,10 @@ use uuid::Uuid;
 use crate::{
     clients::{
         exchanges::{
-            CancelOrderResponse, ExchangeBalance, ExchangeCredentials, ExchangeOpenOrder,
-            ExchangeOrderDetail, ExchangeOrderType, ExchangePosition, ExchangeSide,
-            ExchangeSymbolConstraints, ExchangeTradeFill, LiveExchangeAdapter, PlaceOrderRequest,
-            PlaceOrderResponse, PositionSide, TimeInForce,
+            CancelOrderResponse, ExchangeBalance, ExchangeCredentials, ExchangeMarginMode,
+            ExchangeOpenOrder, ExchangeOrderDetail, ExchangeOrderType, ExchangePosition,
+            ExchangeSide, ExchangeSymbolConstraints, ExchangeTradeFill, LiveExchangeAdapter,
+            PlaceOrderRequest, PlaceOrderResponse, PositionSide, TimeInForce,
         },
         outbound_http::{OutboundRequestLog, OutboundResponse, send_text},
     },
@@ -25,35 +25,79 @@ type HmacSha256 = Hmac<Sha256>;
 #[derive(Debug, Clone)]
 pub struct BinanceFuturesAdapter {
     client: Client,
+    exchange_type: &'static str,
     api_key: String,
     secret_key: String,
     base_url: String,
+    ws_base_url: String,
 }
 
 impl BinanceFuturesAdapter {
     pub fn new(credentials: ExchangeCredentials) -> Result<Self, AppError> {
-        if credentials.api_key.trim().is_empty() {
+        Self::new_with_config(
+            "binance",
+            credentials,
+            "https://fapi.binance.com",
+            "https://testnet.binancefuture.com",
+            "wss://fstream.binance.com",
+            "wss://stream.binancefuture.com",
+        )
+    }
+
+    pub fn new_aster(credentials: ExchangeCredentials) -> Result<Self, AppError> {
+        if credentials.testnet {
             return Err(AppError::InvalidExchangeConfig(
-                "binance api_key is required".to_string(),
-            ));
-        }
-        if credentials.secret_key.trim().is_empty() {
-            return Err(AppError::InvalidExchangeConfig(
-                "binance secret_key is required".to_string(),
+                "aster testnet endpoint is not configured".to_string(),
             ));
         }
 
+        Self::new_with_config(
+            "aster",
+            credentials,
+            "https://fapi.asterdex.com",
+            "https://fapi.asterdex.com",
+            "wss://fstream.asterdex.com",
+            "wss://fstream.asterdex.com",
+        )
+    }
+
+    fn new_with_config(
+        exchange_type: &'static str,
+        credentials: ExchangeCredentials,
+        live_base_url: &str,
+        testnet_base_url: &str,
+        live_ws_base_url: &str,
+        testnet_ws_base_url: &str,
+    ) -> Result<Self, AppError> {
+        if credentials.api_key.trim().is_empty() {
+            return Err(AppError::InvalidExchangeConfig(format!(
+                "{exchange_type} api_key is required"
+            )));
+        }
+        if credentials.secret_key.trim().is_empty() {
+            return Err(AppError::InvalidExchangeConfig(format!(
+                "{exchange_type} secret_key is required"
+            )));
+        }
+
         let base_url = if credentials.testnet {
-            "https://testnet.binancefuture.com".to_string()
+            testnet_base_url.to_string()
         } else {
-            "https://fapi.binance.com".to_string()
+            live_base_url.to_string()
+        };
+        let ws_base_url = if credentials.testnet {
+            testnet_ws_base_url.to_string()
+        } else {
+            live_ws_base_url.to_string()
         };
 
         Ok(Self {
             client: Client::builder().build().map_err(AppError::ExchangeHttp)?,
+            exchange_type,
             api_key: credentials.api_key,
             secret_key: credentials.secret_key,
             base_url,
+            ws_base_url,
         })
     }
 
@@ -163,12 +207,19 @@ impl BinanceFuturesAdapter {
 
         parse_json_response(resp)
     }
+
+    async fn dual_side_position(&self) -> Result<bool, AppError> {
+        let payload: BinancePositionModeResponse = self
+            .signed_get("/fapi/v1/positionSide/dual", vec![])
+            .await?;
+        Ok(payload.dual_side_position)
+    }
 }
 
 #[async_trait]
 impl LiveExchangeAdapter for BinanceFuturesAdapter {
     fn exchange_type(&self) -> &'static str {
-        "binance"
+        self.exchange_type
     }
 
     async fn ping(&self) -> Result<(), AppError> {
@@ -200,6 +251,7 @@ impl LiveExchangeAdapter for BinanceFuturesAdapter {
             ));
         }
 
+        let hedge_mode = self.dual_side_position().await?;
         let mut params = vec![
             ("symbol", symbol),
             (
@@ -220,24 +272,31 @@ impl LiveExchangeAdapter for BinanceFuturesAdapter {
             (
                 "newClientOrderId",
                 req.client_order_id
-                    .unwrap_or_else(|| format!("amaryllis_{}", Uuid::now_v7().simple())),
-            ),
-            (
-                "reduceOnly",
-                if req.reduce_only { "true" } else { "false" }.to_string(),
+                    .unwrap_or_else(|| format!("quantaura_{}", Uuid::now_v7().simple())),
             ),
         ];
 
-        if let Some(ps) = req.position_side {
-            params.push((
-                "positionSide",
-                match ps {
-                    PositionSide::Both => "BOTH",
-                    PositionSide::Long => "LONG",
-                    PositionSide::Short => "SHORT",
-                }
-                .to_string(),
-            ));
+        if hedge_mode {
+            let ps = req
+                .position_side
+                .unwrap_or_else(|| inferred_position_side_for_order(req.side, req.reduce_only));
+            if !matches!(ps, PositionSide::Both) {
+                params.push((
+                    "positionSide",
+                    match ps {
+                        PositionSide::Both => "BOTH",
+                        PositionSide::Long => "LONG",
+                        PositionSide::Short => "SHORT",
+                    }
+                    .to_string(),
+                ));
+            }
+        } else if req.reduce_only {
+            params.push(("reduceOnly", "true".to_string()));
+        }
+
+        if !hedge_mode && matches!(req.position_side, Some(PositionSide::Both)) {
+            params.push(("positionSide", "BOTH".to_string()));
         }
 
         if let ExchangeOrderType::Limit = req.order_type {
@@ -570,6 +629,48 @@ impl LiveExchangeAdapter for BinanceFuturesAdapter {
         })
     }
 
+    async fn ensure_symbol_settings(
+        &self,
+        symbol: &str,
+        leverage: i64,
+        margin_mode: ExchangeMarginMode,
+    ) -> Result<(), AppError> {
+        let symbol = symbol.trim().to_uppercase();
+        if symbol.is_empty() {
+            return Err(AppError::InvalidExchangeConfig(
+                "symbol is required".to_string(),
+            ));
+        }
+        let leverage = leverage.clamp(1, 125);
+        let margin_type = match margin_mode {
+            ExchangeMarginMode::Cross => "CROSSED",
+            ExchangeMarginMode::Isolated => "ISOLATED",
+        };
+
+        let margin_result: Result<serde_json::Value, AppError> = self
+            .signed_post(
+                "/fapi/v1/marginType",
+                vec![
+                    ("symbol", symbol.clone()),
+                    ("marginType", margin_type.to_string()),
+                ],
+            )
+            .await;
+        match margin_result {
+            Ok(_) => {}
+            Err(err) if is_binance_margin_type_noop(&err) => {}
+            Err(err) => return Err(err),
+        }
+
+        let _: serde_json::Value = self
+            .signed_post(
+                "/fapi/v1/leverage",
+                vec![("symbol", symbol), ("leverage", leverage.to_string())],
+            )
+            .await?;
+        Ok(())
+    }
+
     async fn start_user_stream(&self) -> Result<String, AppError> {
         let payload = self.user_stream_request(Method::POST, None).await?;
         let listen_key = payload
@@ -606,13 +707,7 @@ impl LiveExchangeAdapter for BinanceFuturesAdapter {
             ));
         }
 
-        let ws_base = if self.base_url.contains("testnet.binancefuture.com") {
-            "wss://stream.binancefuture.com"
-        } else {
-            "wss://fstream.binance.com"
-        };
-
-        Ok(format!("{}/ws/{}", ws_base, key))
+        Ok(format!("{}/ws/{}", self.ws_base_url, key))
     }
 }
 
@@ -725,6 +820,12 @@ struct BinancePositionRiskRow {
     position_side: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct BinancePositionModeResponse {
+    #[serde(rename = "dualSidePosition", default)]
+    dual_side_position: bool,
+}
+
 fn parse_json_response<T: for<'de> Deserialize<'de>>(
     resp: OutboundResponse,
 ) -> Result<T, AppError> {
@@ -807,4 +908,20 @@ fn format_decimal(v: f64) -> String {
 
 fn parse_f64(v: &str) -> f64 {
     v.parse::<f64>().unwrap_or(0.0)
+}
+
+fn inferred_position_side_for_order(side: ExchangeSide, reduce_only: bool) -> PositionSide {
+    match (side, reduce_only) {
+        (ExchangeSide::Sell, false) | (ExchangeSide::Buy, true) => PositionSide::Short,
+        _ => PositionSide::Long,
+    }
+}
+
+fn is_binance_margin_type_noop(err: &AppError) -> bool {
+    matches!(err, AppError::ExchangeApi { code: -4046, .. })
+        || matches!(
+            err,
+            AppError::ExchangeApi { message, .. }
+                if message.to_ascii_lowercase().contains("no need to change margin type")
+        )
 }

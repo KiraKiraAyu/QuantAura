@@ -1,6 +1,7 @@
 import { computed, onMounted, ref } from "vue"
 import { getCompetitionApi, getEquityHistoryApi } from "@/api/competition"
 import type { CompetitionTrader, EquityPoint } from "@/types/competition-ui"
+import type { EquityHistoryPointPayload } from "@/types/public"
 
 export function useCompetitionPage() {
   const traders = ref<CompetitionTrader[]>([])
@@ -16,7 +17,7 @@ export function useCompetitionPage() {
     const query = search.value.toLowerCase()
     return traders.value.filter(
       (trader) =>
-        (trader.name || trader.trader_id).toLowerCase().includes(query) ||
+        (trader.trader_name || trader.trader_id).toLowerCase().includes(query) ||
         trader.ai_model.toLowerCase().includes(query),
     )
   })
@@ -29,8 +30,7 @@ export function useCompetitionPage() {
   }
 
   function returnPct(trader: CompetitionTrader) {
-    const initial = trader.initial_balance || 1000
-    return ((trader.equity - initial) / initial) * 100
+    return trader.total_pnl_pct
   }
 
   function avatarStyle(id: string) {
@@ -42,17 +42,8 @@ export function useCompetitionPage() {
     loading.value = true
     try {
       const data = await getCompetitionApi()
-      const list = (data.traders ?? []).map((item: any) => ({
-        ...item,
-        name: item.trader_name ?? item.name,
-        equity: item.total_equity ?? item.equity ?? 0,
-        initial_balance:
-          item.initial_balance ??
-          ((item.total_equity ?? 0) - (item.total_pnl ?? 0) || 1000),
-      }))
-      traders.value = [...list].sort(
-        (left: CompetitionTrader, right: CompetitionTrader) =>
-          returnPct(right) - returnPct(left),
+      traders.value = [...data.traders].sort(
+        (left, right) => returnPct(right) - returnPct(left),
       )
       lastUpdated.value = new Date().toLocaleTimeString()
     } catch {
@@ -67,20 +58,20 @@ export function useCompetitionPage() {
     selectedEquity.value = []
     try {
       const points = await getEquityHistoryApi({ trader_id: trader.trader_id })
-      selectedEquity.value = points.map((point: any) => ({
-        time:
-          point.ts ??
-          (point.timestamp
-            ? Math.floor(new Date(point.timestamp).getTime() / 1000)
-            : 0),
-        value: point.total_equity ?? point.equity ?? point.value ?? 0,
-      }))
+      selectedEquity.value = points.map(equityPoint)
     } catch {
       /* keep empty detail chart */
     }
   }
 
   onMounted(load)
+
+  function equityPoint(point: EquityHistoryPointPayload): EquityPoint {
+    return {
+      time: Math.floor(new Date(point.timestamp).getTime() / 1000),
+      value: point.total_equity,
+    }
+  }
 
   return {
     avatarStyle,

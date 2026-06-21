@@ -1,6 +1,6 @@
-# Amaryllis
+# QuantAura
 
-Amaryllis is a full-stack application for AI-assisted trading, quantitative strategy experiments, and runtime trading operations. It includes a Rust/Axum backend and a Vue 3 frontend, with support for authentication, model and exchange configuration, strategy management, backtesting, runtime trading monitoring, debate-style decision workflows, and alerts.
+QuantAura is a full-stack application for AI-assisted trading, quantitative strategy experiments, and runtime trading operations. It includes a Rust/Axum backend and a Vue 3 frontend, with support for authentication, model and exchange configuration, strategy management, backtesting, runtime trading monitoring, debate-style decision workflows, and alerts.
 
 ## Tech Stack
 
@@ -72,10 +72,10 @@ The Vite development server proxies `/api` requests to `http://localhost:8000`.
 Default database configuration:
 
 ```env
-DB_URL=sqlite://data/amaryllis.db
+DB_URL=sqlite://data/quantaura.db
 ```
 
-The backend starts from the `core/` directory, so the default database file is `core/data/amaryllis.db`. The backend creates the database file and runs migrations automatically on startup.
+The backend starts from the `core/` directory, so the default database file is `core/data/quantaura.db`. The backend creates the database file and runs migrations automatically on startup.
 
 ## Testing
 
@@ -132,7 +132,7 @@ Start Docker:
 docker compose up --build
 ```
 
-The SQLite database is persisted in the Docker volume `amaryllis-data`.
+The SQLite database is persisted in the Docker volume `quantaura-data`.
 
 ## Environment Variables
 
