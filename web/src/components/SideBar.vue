@@ -32,7 +32,7 @@ const navItems = [
       >
         A
       </div>
-      <span class="font-black text-lg tracking-tight">AMARYLLIS</span>
+      <span class="font-black text-lg tracking-tight">QUANTAURA</span>
     </div>
 
     <nav class="flex-1 px-3 py-4 flex flex-col gap-1">

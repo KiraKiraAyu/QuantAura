@@ -30,7 +30,7 @@ export interface StrategyIndicatorsConfigPayload {
   enable_volume: boolean
   enable_oi: boolean
   enable_funding_rate: boolean
-  amaryllisos_api_key: string
+  quantauraos_api_key: string
   enable_quant_data: boolean
   enable_oi_ranking: boolean
   enable_netflow_ranking: boolean

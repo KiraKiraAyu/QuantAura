@@ -21,15 +21,15 @@ function toggleDarkMode() {
   isDark.value = !isDark.value
   if (isDark.value) {
     document.documentElement.classList.add("dark")
-    localStorage.setItem("amaryllis.theme", "dark")
+    localStorage.setItem("quantaura.theme", "dark")
   } else {
     document.documentElement.classList.remove("dark")
-    localStorage.setItem("amaryllis.theme", "light")
+    localStorage.setItem("quantaura.theme", "light")
   }
 }
 
 onMounted(() => {
-  const savedTheme = localStorage.getItem("amaryllis.theme")
+  const savedTheme = localStorage.getItem("quantaura.theme")
   const prefersDark =
     window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
   if (savedTheme === "dark" || (!savedTheme && prefersDark)) {

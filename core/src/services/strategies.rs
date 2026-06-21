@@ -285,7 +285,7 @@ impl StrategyService {
         let account_equity = request.account_equity.unwrap_or(1000.0).max(0.0);
         let summary = build_config_summary(&request.config);
         let system_prompt = format!(
-            "You are AMARYLLIS trading AI. Style={}. Equity={:.2}. Follow risk controls strictly and output structured decisions.",
+            "You are QUANTAURA trading AI. Style={}. Equity={:.2}. Follow risk controls strictly and output structured decisions.",
             prompt_variant, account_equity
         );
 
@@ -324,7 +324,7 @@ impl StrategyService {
         let run_real_ai = request.run_real_ai.unwrap_or(false);
         let summary = build_config_summary(&request.config);
 
-        let system_prompt = "You are AMARYLLIS, an expert AI trading system. \
+        let system_prompt = "You are QUANTAURA, an expert AI trading system. \
         Your task is to evaluate a trading strategy configuration and produce concrete \
         trading decisions for the given symbols. \
         Respond ONLY with a valid JSON array of decision objects with these fields: \
@@ -537,7 +537,7 @@ fn default_strategy_config(lang: &str) -> Value {
             "enable_volume": true,
             "enable_oi": true,
             "enable_funding_rate": true,
-            "amaryllisos_api_key": "",
+            "quantauraos_api_key": "",
             "enable_quant_data": false,
             "enable_oi_ranking": false,
             "enable_netflow_ranking": false,

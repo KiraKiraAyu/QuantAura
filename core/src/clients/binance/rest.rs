@@ -272,7 +272,7 @@ impl LiveExchangeAdapter for BinanceFuturesAdapter {
             (
                 "newClientOrderId",
                 req.client_order_id
-                    .unwrap_or_else(|| format!("amaryllis_{}", Uuid::now_v7().simple())),
+                    .unwrap_or_else(|| format!("quantaura_{}", Uuid::now_v7().simple())),
             ),
         ];
 

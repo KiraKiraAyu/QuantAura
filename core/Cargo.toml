@@ -2,18 +2,18 @@
 members = [".", "migration"]
 
 [package]
-name = "amaryllis"
+name = "quantaura"
 version = "0.1.0"
 edition = "2024"
 description = "Backend rewritten with Axum"
 license = "AGPL-3.0"
 
 [lib]
-name = "amaryllis"
+name = "quantaura"
 path = "src/lib.rs"
 
 [[bin]]
-name = "amaryllis"
+name = "quantaura"
 path = "src/main.rs"
 
 [dependencies]

@@ -32,11 +32,11 @@ const nav = computed(() => [
     <div class="flex items-center gap-3 px-2">
       <div
         class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary-500 text-white font-black text-xl shadow-lg shadow-primary-500/20"
-        aria-label="Amaryllis"
+        aria-label="QuantAura"
       >
         A
       </div>
-      <span class="text-xl font-bold tracking-wide text-surface-900 dark:text-surface-0">Amaryllis</span>
+      <span class="text-xl font-bold tracking-wide text-surface-900 dark:text-surface-0">QuantAura</span>
     </div>
 
     <!-- Nav Items -->
