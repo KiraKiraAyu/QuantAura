@@ -479,7 +479,19 @@ pub async fn execute_decisions_live(
         }
 
         let leverage = leverage_for_symbol(cfg, &d.symbol).max(1);
-        let risk_budget = (metrics.total_balance * 0.06).max(5.0);
+        let mut risk_budget = (metrics.total_balance * 0.06).max(5.0);
+        if let Some(sym_cfg) = cfg.symbols_config.iter().find(|s| s.symbol.to_uppercase() == d.symbol.to_uppercase()) {
+            if let Some(fixed) = sym_cfg.fixed_cost {
+                risk_budget = fixed;
+            } else {
+                if let Some(min_c) = sym_cfg.min_cost {
+                    risk_budget = risk_budget.max(min_c);
+                }
+                if let Some(max_c) = sym_cfg.max_cost {
+                    risk_budget = risk_budget.min(max_c);
+                }
+            }
+        }
         let raw_qty = (risk_budget * leverage as f64 / price).max(0.0001);
 
         let constraints = get_symbol_constraints_with_retry(adapter, &d.symbol).await?;

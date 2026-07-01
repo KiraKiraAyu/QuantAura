@@ -19,6 +19,65 @@ pub async fn load_trader_runtime_config(
         Err(err) => return Err(err),
     };
 
+    // Try to load strategy configuration to extract symbols settings
+    let mut symbols_config = Vec::new();
+    if !row.strategy_id.trim().is_empty() {
+        use crate::entity::strategies;
+        use sea_orm::EntityTrait;
+
+        if let Ok(Some(strategy)) = strategies::Entity::find_by_id(row.strategy_id.clone())
+            .one(state.trading_repo.db())
+            .await
+        {
+            if let Ok(cfg_val) = serde_json::from_str::<serde_json::Value>(&strategy.config) {
+                if let Some(symbols_arr) = cfg_val.get("symbols").and_then(|v| v.as_array()) {
+                    for item in symbols_arr {
+                        if let Some(symbol) = item.get("symbol").and_then(|v| v.as_str()) {
+                            let leverage = item.get("leverage").and_then(|v| v.as_i64()).unwrap_or(5);
+                            let min_cost = item.get("min_cost").and_then(|v| v.as_f64());
+                            let max_cost = item.get("max_cost").and_then(|v| v.as_f64());
+                            let fixed_cost = item.get("fixed_cost").and_then(|v| v.as_f64());
+                            symbols_config.push(SymbolConfig {
+                                symbol: symbol.to_uppercase(),
+                                leverage,
+                                min_cost,
+                                max_cost,
+                                fixed_cost,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if symbols_config.is_empty() {
+        // Fallback: Parse from trader's database columns
+        let symbols = parse_symbols(&row.trading_symbols);
+        for symbol in symbols {
+            let is_major = symbol.contains("BTC") || symbol.contains("ETH");
+            let leverage = if is_major {
+                row.btc_eth_leverage as i64
+            } else {
+                row.altcoin_leverage as i64
+            };
+            symbols_config.push(SymbolConfig {
+                symbol,
+                leverage,
+                min_cost: None,
+                max_cost: None,
+                fixed_cost: None,
+            });
+        }
+    }
+
+    // Dynamic trading_symbols comma-separated string derived from symbols_config
+    let trading_symbols = symbols_config
+        .iter()
+        .map(|s| s.symbol.clone())
+        .collect::<Vec<_>>()
+        .join(",");
+
     Ok(Some(TraderRuntimeConfig {
         trader_id: row.id,
         user_id: row.user_id,
@@ -31,13 +90,14 @@ pub async fn load_trader_runtime_config(
         exchange_id: row.exchange_id,
         scan_interval_minutes: row.scan_interval_minutes,
         initial_balance: row.initial_balance,
-        btc_eth_leverage: row.btc_eth_leverage,
-        altcoin_leverage: row.altcoin_leverage,
+        btc_eth_leverage: row.btc_eth_leverage as i64,
+        altcoin_leverage: row.altcoin_leverage as i64,
         is_cross_margin: row.is_cross_margin != 0,
-        trading_symbols: row.trading_symbols,
+        trading_symbols,
         custom_prompt: row.custom_prompt,
         override_base_prompt: row.override_base_prompt != 0,
         system_prompt_template: row.system_prompt_template,
+        symbols_config,
     }))
 }
 
@@ -175,11 +235,15 @@ pub fn parse_symbols(raw: &str) -> Vec<String> {
 }
 
 pub fn leverage_for_symbol(cfg: &TraderRuntimeConfig, symbol: &str) -> i64 {
-    let is_major = symbol.contains("BTC") || symbol.contains("ETH");
-    if is_major {
-        cfg.btc_eth_leverage.clamp(1, 50)
+    if let Some(sym_cfg) = cfg.symbols_config.iter().find(|s| s.symbol.to_uppercase() == symbol.to_uppercase()) {
+        sym_cfg.leverage.clamp(1, 50)
     } else {
-        cfg.altcoin_leverage.clamp(1, 50)
+        let is_major = symbol.contains("BTC") || symbol.contains("ETH");
+        if is_major {
+            cfg.btc_eth_leverage.clamp(1, 50)
+        } else {
+            cfg.altcoin_leverage.clamp(1, 50)
+        }
     }
 }
 

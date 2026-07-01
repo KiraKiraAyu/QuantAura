@@ -336,17 +336,32 @@ impl StrategyService {
             serde_json::to_string_pretty(&request.config).unwrap_or_else(|_| "{}".to_string());
         let summary_str = serde_json::to_string(&summary).unwrap_or_else(|_| "{}".to_string());
 
-        let symbols: Vec<String> = request
-            .config
-            .get("trading_symbols")
-            .and_then(|v| v.as_str())
-            .map(|s| {
-                s.split(',')
+        let mut symbols: Vec<String> = Vec::new();
+        if let Some(symbols_arr) = request.config.get("symbols").and_then(|v| v.as_array()) {
+            for item in symbols_arr {
+                if let Some(symbol) = item.get("symbol").and_then(|v| v.as_str()) {
+                    let s_trim = symbol.trim().to_uppercase();
+                    if !s_trim.is_empty() {
+                        symbols.push(s_trim);
+                    }
+                }
+            }
+        }
+        if symbols.is_empty() {
+            if let Some(s) = request.config.get("trading_symbols").and_then(|v| v.as_str()) {
+                symbols = s.split(',')
                     .map(|sym| sym.trim().to_uppercase())
                     .filter(|s| !s.is_empty())
-                    .collect()
-            })
-            .unwrap_or_else(|| vec!["BTCUSDT".to_string(), "ETHUSDT".to_string()]);
+                    .collect();
+            }
+        }
+
+        if symbols.is_empty() {
+            return Err(strategy_error(
+                AppErrorKind::BadRequest,
+                "No symbols configured. Please add at least one trading symbol to run the test.",
+            ));
+        }
 
         let symbols_str = symbols.join(", ");
         let user_prompt = format!(
@@ -508,6 +523,9 @@ fn default_strategy_config(lang: &str) -> Value {
     json!({
         "strategy_type": "ai_trading",
         "language": if is_zh { "zh" } else { "en" },
+        "symbols": [],
+        "max_positions": 5,
+        "prompt_variant": "balanced",
         "coin_source": {
             "source_type": "mixed",
             "static_coins": ["BTCUSDT", "ETHUSDT"],
@@ -598,6 +616,43 @@ fn default_strategy_config(lang: &str) -> Value {
 }
 
 fn build_config_summary(config: &Value) -> StrategyConfigSummaryPayload {
+    let mut btc_eth_leverage = 5;
+    let mut altcoin_leverage = 5;
+    if let Some(symbols) = config.get("symbols").and_then(|v| v.as_array()) {
+        for s in symbols {
+            if let Some(symbol) = s.get("symbol").and_then(|v| v.as_str()) {
+                let lev = s.get("leverage").and_then(|v| v.as_i64()).unwrap_or(5);
+                let sym_upper = symbol.to_uppercase();
+                if sym_upper.contains("BTC") || sym_upper.contains("ETH") {
+                    btc_eth_leverage = lev;
+                } else {
+                    altcoin_leverage = lev;
+                }
+            }
+        }
+    } else {
+        if let Some(lev) = config.get("btc_eth_leverage").and_then(|v| v.as_i64()) {
+            btc_eth_leverage = lev;
+        } else if let Some(lev) = config.pointer("/risk_control/btc_eth_max_leverage").and_then(|v| v.as_i64()) {
+            btc_eth_leverage = lev;
+        }
+        if let Some(lev) = config.get("altcoin_leverage").and_then(|v| v.as_i64()) {
+            altcoin_leverage = lev;
+        } else if let Some(lev) = config.pointer("/risk_control/altcoin_max_leverage").and_then(|v| v.as_i64()) {
+            altcoin_leverage = lev;
+        }
+    }
+
+    let max_positions = config
+        .get("max_positions")
+        .and_then(|v| v.as_i64())
+        .unwrap_or_else(|| {
+            config
+                .pointer("/risk_control/max_positions")
+                .and_then(Value::as_i64)
+                .unwrap_or(3)
+        });
+
     StrategyConfigSummaryPayload {
         coin_source: config
             .pointer("/coin_source/source_type")
@@ -609,17 +664,8 @@ fn build_config_summary(config: &Value) -> StrategyConfigSummaryPayload {
             .and_then(Value::as_str)
             .unwrap_or("3m")
             .to_string(),
-        btc_eth_leverage: config
-            .pointer("/risk_control/btc_eth_max_leverage")
-            .and_then(Value::as_i64)
-            .unwrap_or(5),
-        altcoin_leverage: config
-            .pointer("/risk_control/altcoin_max_leverage")
-            .and_then(Value::as_i64)
-            .unwrap_or(5),
-        max_positions: config
-            .pointer("/risk_control/max_positions")
-            .and_then(Value::as_i64)
-            .unwrap_or(3),
+        btc_eth_leverage,
+        altcoin_leverage,
+        max_positions,
     }
 }

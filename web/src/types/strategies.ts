@@ -74,7 +74,16 @@ export interface StrategyGridConfigPayload {
   direction_bias_ratio: number
 }
 
+export interface StrategySymbolConfig {
+  symbol: string
+  leverage: number
+  min_cost?: number | null
+  max_cost?: number | null
+  fixed_cost?: number | null
+}
+
 export interface StrategyConfigPayload {
+  symbols?: StrategySymbolConfig[]
   strategy_type?: string
   language?: string
   coin_source?: StrategyCoinSourceConfigPayload

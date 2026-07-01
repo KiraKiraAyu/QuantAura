@@ -81,6 +81,15 @@ impl RuntimeState {
     }
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SymbolConfig {
+    pub symbol: String,
+    pub leverage: i64,
+    pub min_cost: Option<f64>,
+    pub max_cost: Option<f64>,
+    pub fixed_cost: Option<f64>,
+}
+
 #[derive(Debug, Clone)]
 pub struct TraderRuntimeConfig {
     pub trader_id: String,
@@ -103,6 +112,7 @@ pub struct TraderRuntimeConfig {
     pub override_base_prompt: bool,
     #[allow(dead_code)]
     pub system_prompt_template: String,
+    pub symbols_config: Vec<SymbolConfig>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

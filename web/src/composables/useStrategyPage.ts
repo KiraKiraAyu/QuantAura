@@ -1,6 +1,6 @@
-import { onMounted, ref } from "vue"
+import { onMounted, ref, computed } from "vue"
+import { onBeforeRouteLeave } from "vue-router"
 import {
-  activateStrategyApi,
   createStrategyApi,
   deleteStrategyApi,
   duplicateStrategyApi,
@@ -18,6 +18,8 @@ import type {
 export function useStrategyPage() {
   const strategies = ref<EditableStrategy[]>([])
   const selected = ref<EditableStrategy | null>(null)
+  const originalStrategy = ref<EditableStrategy | null>(null)
+  const isEditing = ref(false)
   const loading = ref(true)
   const saving = ref(false)
   const testRunLoading = ref(false)
@@ -25,6 +27,11 @@ export function useStrategyPage() {
   const previewPromptText = ref<StrategyPromptPreviewModel | null>(null)
   const previewLoading = ref(false)
   const duplicating = ref(false)
+
+  const isDirty = computed(() => {
+    if (!isEditing.value || !selected.value || !originalStrategy.value) return false
+    return JSON.stringify(selected.value) !== JSON.stringify(originalStrategy.value)
+  })
 
   async function load() {
     loading.value = true
@@ -37,6 +44,12 @@ export function useStrategyPage() {
   }
 
   function createNew() {
+    if (isDirty.value) {
+      if (!confirm("You have unsaved changes. Discard them?")) {
+        return
+      }
+    }
+    
     selected.value = {
       id: "",
       name: "New Strategy",
@@ -47,13 +60,61 @@ export function useStrategyPage() {
       created_at: "",
       updated_at: "",
       config: {
-        trading_symbols: "BTCUSDT,ETHUSDT",
+        symbols: [],
         max_positions: 5,
-        btc_eth_leverage: 5,
-        altcoin_leverage: 3,
         prompt_variant: "balanced",
       },
     }
+    
+    originalStrategy.value = JSON.parse(JSON.stringify(selected.value))
+    isEditing.value = true
+  }
+
+  function startEdit() {
+    if (!selected.value) return
+    originalStrategy.value = JSON.parse(JSON.stringify(selected.value))
+    isEditing.value = true
+  }
+
+  function cancelEdit() {
+    if (isDirty.value) {
+      if (!confirm("Discard unsaved changes?")) {
+        return
+      }
+    }
+    if (!selected.value || !selected.value.id) {
+      selected.value = null
+    } else if (originalStrategy.value) {
+      selected.value = JSON.parse(JSON.stringify(originalStrategy.value))
+    }
+    isEditing.value = false
+    originalStrategy.value = null
+  }
+
+  function selectStrategy(strategy: EditableStrategy) {
+    if (isDirty.value) {
+      if (!confirm("You have unsaved changes. Discard them?")) {
+        return
+      }
+    }
+    selected.value = strategy
+    isEditing.value = false
+    originalStrategy.value = null
+    previewPromptText.value = null
+    testResult.value = null
+  }
+
+  function backToList() {
+    if (isDirty.value) {
+      if (!confirm("You have unsaved changes. Discard them?")) {
+        return
+      }
+    }
+    selected.value = null
+    isEditing.value = false
+    originalStrategy.value = null
+    previewPromptText.value = null
+    testResult.value = null
   }
 
   async function saveStrategy() {
@@ -67,25 +128,27 @@ export function useStrategyPage() {
         selected.value.id = data.id
       }
       await load()
+      // Locate saved strategy in list to bind references
+      const matched = strategies.value.find(s => s.id === selected.value?.id)
+      if (matched) {
+        selected.value = matched
+      }
+      isEditing.value = false
+      originalStrategy.value = null
     } finally {
       saving.value = false
     }
   }
 
-  async function activateStrategy() {
-    if (!selected.value?.id) return
-    await activateStrategyApi(selected.value.id)
-    await load()
-    selected.value =
-      strategies.value.find((strategy) => strategy.id === selected.value?.id) ??
-      selected.value
-  }
+
 
   async function deleteStrategy() {
     if (!selected.value?.id) return
     if (!confirm("Delete this strategy?")) return
     await deleteStrategyApi(selected.value.id)
     selected.value = null
+    isEditing.value = false
+    originalStrategy.value = null
     await load()
   }
 
@@ -128,6 +191,8 @@ export function useStrategyPage() {
       await load()
       selected.value =
         strategies.value.find((strategy) => strategy.id === data.id) ?? null
+      isEditing.value = false
+      originalStrategy.value = null
     } finally {
       duplicating.value = false
     }
@@ -151,10 +216,22 @@ export function useStrategyPage() {
     }
   }
 
+  onBeforeRouteLeave((_to, _from, next) => {
+    if (isDirty.value) {
+      const answer = window.confirm("You have unsaved changes. Do you really want to leave?")
+      if (answer) {
+        next()
+      } else {
+        next(false)
+      }
+    } else {
+      next()
+    }
+  })
+
   onMounted(load)
 
   return {
-    activateStrategy,
     createNew,
     deleteStrategy,
     duplicateStrategy,
@@ -170,5 +247,11 @@ export function useStrategyPage() {
     strategies,
     testResult,
     testRunLoading,
+    isEditing,
+    isDirty,
+    startEdit,
+    cancelEdit,
+    selectStrategy,
+    backToList,
   }
 }

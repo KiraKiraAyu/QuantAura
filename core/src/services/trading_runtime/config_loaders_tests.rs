@@ -54,6 +54,22 @@ async fn test_state_and_cfg() -> (TestRuntimeState, TraderRuntimeConfig) {
         custom_prompt: String::new(),
         override_base_prompt: false,
         system_prompt_template: "default".to_string(),
+        symbols_config: vec![
+            SymbolConfig {
+                symbol: "BTCUSDT".to_string(),
+                leverage: 5,
+                min_cost: None,
+                max_cost: None,
+                fixed_cost: None,
+            },
+            SymbolConfig {
+                symbol: "ETHUSDT".to_string(),
+                leverage: 5,
+                min_cost: None,
+                max_cost: None,
+                fixed_cost: None,
+            },
+        ],
     };
 
     (state, cfg)
@@ -1157,6 +1173,7 @@ async fn test_preflight_live_symbols_configures_margin_leverage_and_validates_co
     cfg.is_cross_margin = false;
     cfg.btc_eth_leverage = 7;
     cfg.altcoin_leverage = 3;
+    cfg.symbols_config.clear(); // Clear so that it tests fallback leverage resolution
 
     let adapter = FakeLiveExchangeAdapter::default();
 
@@ -1174,6 +1191,48 @@ async fn test_preflight_live_symbols_configures_margin_leverage_and_validates_co
         vec![
             ("BTCUSDT".to_string(), 7, "isolated".to_string()),
             ("SOLUSDT".to_string(), 3, "isolated".to_string()),
+        ]
+    );
+}
+
+#[tokio::test]
+async fn test_preflight_live_symbols_configures_margin_leverage_from_symbols_config() {
+    let (_, mut cfg) = test_state_and_cfg().await;
+    cfg.is_cross_margin = false;
+    // Set explicit leverages in symbols_config
+    cfg.symbols_config = vec![
+        SymbolConfig {
+            symbol: "BTCUSDT".to_string(),
+            leverage: 12,
+            min_cost: None,
+            max_cost: None,
+            fixed_cost: None,
+        },
+        SymbolConfig {
+            symbol: "SOLUSDT".to_string(),
+            leverage: 8,
+            min_cost: None,
+            max_cost: None,
+            fixed_cost: None,
+        },
+    ];
+
+    let adapter = FakeLiveExchangeAdapter::default();
+
+    preflight_live_symbols(
+        &adapter,
+        &cfg,
+        &["BTCUSDT".to_string(), "SOLUSDT".to_string()],
+    )
+    .await
+    .expect("preflight live symbols");
+
+    let calls = adapter.symbol_setting_calls.lock().await.clone();
+    assert_eq!(
+        calls,
+        vec![
+            ("BTCUSDT".to_string(), 12, "isolated".to_string()),
+            ("SOLUSDT".to_string(), 8, "isolated".to_string()),
         ]
     );
 }
