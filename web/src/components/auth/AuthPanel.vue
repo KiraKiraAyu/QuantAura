@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { Icon } from "@iconify/vue"
-import BaseButton from "@/components/universal/BaseButton.vue"
+import { computed, onMounted, onUnmounted, ref } from "vue"
+import Button from "primevue/button"
 import BaseInput from "@/components/universal/BaseInput.vue"
 import type { AuthMode } from "@/types/auth-ui"
 
 defineProps<{
   loading: boolean
-  error: string
   emailError: string
   passwordError: string
 }>()
@@ -28,21 +27,61 @@ function submitAs(nextMode: AuthMode) {
   mode.value = nextMode
   emit("submit")
 }
+
+const isDark = ref(false)
+let observer: MutationObserver | null = null
+
+function updateTheme() {
+  isDark.value = document.documentElement.classList.contains("dark")
+}
+
+onMounted(() => {
+  updateTheme()
+  observer = new MutationObserver(updateTheme)
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] })
+})
+
+onUnmounted(() => {
+  if (observer) {
+    observer.disconnect()
+  }
+})
+
+const backgroundStyle = computed(() => {
+  if (isDark.value) {
+    return {
+      backgroundColor: "oklch(0.145 0.018 285)",
+      backgroundImage: `
+        radial-gradient(circle at top left, oklch(0.32 0.11 301), transparent 34%),
+        radial-gradient(circle at bottom right, oklch(0.24 0.11 225), transparent 32%)
+      `
+    }
+  } else {
+    return {
+      backgroundColor: "var(--p-surface-50)",
+      backgroundImage: `
+        radial-gradient(circle at top left, var(--color-reisa-pink-100), transparent 40%),
+        radial-gradient(circle at bottom right, var(--color-reisa-lilac-100), transparent 40%)
+      `
+    }
+  }
+})
 </script>
 
 <template>
   <div
-    class="min-h-screen flex items-center justify-center p-4 bg-[radial-gradient(circle_at_top_left,oklch(0.32_0.11_301),transparent_34%),radial-gradient(circle_at_bottom_right,oklch(0.24_0.11_225),transparent_32%),oklch(0.145_0.018_285)]"
+    class="min-h-screen flex items-center justify-center p-4 transition-colors duration-300"
+    :style="backgroundStyle"
   >
     <div
-      class="relative w-full max-w-4xl overflow-hidden rounded-4xl border border-white/10 bg-[oklch(0.19_0.018_285)] shadow-2xl shadow-black/50 min-h-155"
+      class="relative w-full max-w-4xl overflow-hidden rounded-4xl bg-surface-0 dark:bg-[oklch(0.19_0.018_285)] shadow-2xl shadow-surface-300/30 dark:shadow-black/50 min-h-155 transition-all duration-300"
     >
       <div
-        class="absolute left-0 top-0 hidden h-full w-1/2 transition-transform duration-700 ease-in-out md:block z-20"
-        :class="{ 'translate-x-full': mode === 'Register' }"
+        class="absolute left-0 top-0 hidden h-full w-1/2 transition-all duration-700 ease-in-out md:block"
+        :class="mode === 'Register' ? 'translate-x-full opacity-0 pointer-events-none z-10' : 'opacity-100 z-20'"
       >
         <form
-          class="flex h-full flex-col items-center justify-center bg-[oklch(0.18_0.018_285)] px-12 text-center text-white"
+          class="flex h-full flex-col items-center justify-center bg-surface-0 dark:bg-[oklch(0.18_0.018_285)] px-12 text-center text-surface-900 dark:text-white transition-colors duration-300"
           @submit.prevent="submitAs('Login')"
         >
           <div
@@ -50,8 +89,8 @@ function submitAs(nextMode: AuthMode) {
           >
             <span class="text-2xl font-black text-white">A</span>
           </div>
-          <h1 class="mb-2 text-3xl font-black text-white">Welcome back</h1>
-          <p class="mb-6 text-sm text-white/55">Sign in to QuantAura</p>
+          <h1 class="mb-2 text-3xl font-black text-surface-900 dark:text-white">Welcome back</h1>
+          <p class="mb-6 text-sm text-surface-500 dark:text-white/55">Sign in to QuantAura</p>
 
           <BaseInput
             v-model="email"
@@ -60,7 +99,7 @@ function submitAs(nextMode: AuthMode) {
             type="email"
             autocomplete="email"
             required
-            class="w-full border-white/15 bg-white/5 text-white"
+            class="w-full"
             :error="emailError"
             @blur="emit('validate', 'email')"
           />
@@ -71,36 +110,25 @@ function submitAs(nextMode: AuthMode) {
             type="password"
             autocomplete="current-password"
             required
-            class="w-full border-white/15 bg-white/5 text-white"
+            class="w-full"
             :error="passwordError"
             @blur="emit('validate', 'password')"
           />
 
           <a
             href="#"
-            class="my-4 border-b border-transparent text-sm text-white/45 transition-colors hover:border-white/45 hover:text-white"
+            class="my-4 border-b border-transparent text-sm text-surface-500 hover:border-surface-700 hover:text-surface-900 dark:text-white/45 dark:hover:border-white/45 dark:hover:text-white transition-colors"
           >
             Forgot password?
           </a>
-
-          <p
-            v-if="error"
-            class="mb-3 rounded-lg px-3 py-2 text-xs text-[--color-error] bg-[oklch(0.65_0.21_15/0.1)]"
-          >
-            {{ error }}
-          </p>
-          <BaseButton
+          <Button
             type="submit"
-            variant="emphasis"
-            class="mt-2 min-w-36 justify-center font-semibold uppercase tracking-wider"
+            class="mt-2 min-w-36 justify-center font-semibold uppercase tracking-wider rounded-full py-2 bg-linear-to-br from-reisa-pink-500 to-reisa-lilac-500 hover:from-reisa-pink-400 hover:to-reisa-lilac-400 border-none text-white transition-all duration-200"
             :disabled="loading"
+            :loading="loading"
           >
-            <Icon
-              :icon="loading ? 'ic:round-hourglass-empty' : 'ic:round-login'"
-              class="inline-block text-base align-[-0.125em]"
-            />
-            {{ loading ? "Please wait..." : "Log in" }}
-          </BaseButton>
+            Log in
+          </Button>
         </form>
       </div>
 
@@ -109,11 +137,11 @@ function submitAs(nextMode: AuthMode) {
         :class="
           mode === 'Register'
             ? 'translate-x-full opacity-100 z-30'
-            : 'opacity-0 z-10'
+            : 'opacity-0 z-10 pointer-events-none'
         "
       >
         <form
-          class="flex h-full flex-col items-center justify-center bg-[oklch(0.18_0.018_285)] px-12 text-center text-white"
+          class="flex h-full flex-col items-center justify-center bg-surface-0 dark:bg-[oklch(0.18_0.018_285)] px-12 text-center text-surface-900 dark:text-white transition-colors duration-300"
           @submit.prevent="submitAs('Register')"
         >
           <div
@@ -121,8 +149,8 @@ function submitAs(nextMode: AuthMode) {
           >
             <span class="text-2xl font-black text-white">A</span>
           </div>
-          <h1 class="mb-2 text-3xl font-black text-white">Create account</h1>
-          <p class="mb-6 text-sm text-white/55">
+          <h1 class="mb-2 text-3xl font-black text-surface-900 dark:text-white">Create account</h1>
+          <p class="mb-6 text-sm text-surface-500 dark:text-white/55">
             Start with email and password
           </p>
 
@@ -133,7 +161,7 @@ function submitAs(nextMode: AuthMode) {
             type="email"
             autocomplete="email"
             required
-            class="w-full border-white/15 bg-white/5 text-white"
+            class="w-full"
             :error="emailError"
             @blur="emit('validate', 'email')"
           />
@@ -144,29 +172,18 @@ function submitAs(nextMode: AuthMode) {
             type="password"
             autocomplete="new-password"
             required
-            class="w-full border-white/15 bg-white/5 text-white"
+            class="w-full"
             :error="passwordError"
             @blur="emit('validate', 'password')"
           />
-
-          <p
-            v-if="error"
-            class="mb-3 rounded-lg px-3 py-2 text-xs text-[--color-error] bg-[oklch(0.65_0.21_15/0.1)]"
-          >
-            {{ error }}
-          </p>
-          <BaseButton
+          <Button
             type="submit"
-            variant="emphasis"
-            class="mt-2 min-w-36 justify-center font-semibold uppercase tracking-wider"
+            class="mt-4 min-w-36 justify-center font-semibold uppercase tracking-wider rounded-full py-2 bg-linear-to-br from-reisa-pink-500 to-reisa-lilac-500 hover:from-reisa-pink-400 hover:to-reisa-lilac-400 border-none text-white transition-all duration-200"
             :disabled="loading"
+            :loading="loading"
           >
-            <Icon
-              :icon="loading ? 'ic:round-hourglass-empty' : 'ic:round-add'"
-              class="inline-block text-base align-[-0.125em]"
-            />
-            {{ loading ? "Please wait..." : "Sign up" }}
-          </BaseButton>
+            Sign up
+          </Button>
         </form>
       </div>
 
@@ -175,47 +192,49 @@ function submitAs(nextMode: AuthMode) {
         :class="{ '-translate-x-full': mode === 'Register' }"
       >
         <div
-          class="relative -left-full flex h-full w-[200%] flex-row bg-[radial-gradient(circle_at_30%_20%,oklch(0.58_0.18_350),transparent_30%),linear-gradient(140deg,oklch(0.2_0.07_285),oklch(0.27_0.12_260),oklch(0.18_0.06_225))] text-white transition-transform duration-700 ease-in-out"
+          class="relative -left-full flex h-full w-[200%] flex-row bg-reisa-lilac-50 dark:bg-surface-900 text-reisa-lilac-900 dark:text-white transition-transform duration-700 ease-in-out"
           :class="{ 'translate-x-1/2': mode === 'Register' }"
         >
           <div
             class="flex h-full w-1/2 flex-col items-center justify-center px-10 text-center"
           >
-            <h2 class="mb-4 text-4xl font-black">Already have an account?</h2>
-            <p class="mb-8 max-w-xs text-sm text-white/85">
-              Return to your trading terminal and live strategy workspace.
-            </p>
-            <BaseButton
-              variant="outline"
-              class="border-white/70 text-white hover:bg-white hover:text-[oklch(0.18_0.018_285)] font-semibold uppercase tracking-wider"
+            <div class="flex flex-col items-center gap-2 mb-8">
+              <span class="text-[10px] font-extrabold tracking-widest uppercase text-reisa-lilac-600/70 dark:text-white/50">Welcome Back</span>
+              <h2 class="text-3xl font-extrabold tracking-tight text-reisa-lilac-950 dark:text-white leading-tight">
+                Already have<br />an account?
+              </h2>
+            </div>
+            <Button
+              variant="outlined"
+              class="border border-reisa-lilac-300 dark:border-white/30 text-reisa-lilac-700 dark:text-white hover:bg-reisa-lilac-600 dark:hover:bg-white hover:text-white dark:hover:text-surface-900 rounded-full font-bold uppercase tracking-wider py-2.5 px-7 transition-all duration-300 text-xs shadow-sm hover:shadow-md"
               :disabled="loading"
               @click="toggleMode"
-            >
-              Go to log in
-            </BaseButton>
+              label="Go to log in"
+            />
           </div>
 
           <div
             class="flex h-full w-1/2 flex-col items-center justify-center px-10 text-center"
           >
-            <h2 class="mb-4 text-4xl font-black">New to QuantAura?</h2>
-            <p class="mb-8 max-w-xs text-sm text-white/85">
-              Create an account to configure models, exchanges, and strategies.
-            </p>
-            <BaseButton
-              variant="outline"
-              class="border-white/70 text-white hover:bg-white hover:text-[oklch(0.18_0.018_285)] font-semibold uppercase tracking-wider"
+            <div class="flex flex-col items-center gap-2 mb-8">
+              <span class="text-[10px] font-extrabold tracking-widest uppercase text-reisa-lilac-600/70 dark:text-white/50">Start Trading</span>
+              <h2 class="text-3xl font-extrabold tracking-tight text-reisa-lilac-950 dark:text-white leading-tight">
+                New to<br />QuantAura?
+              </h2>
+            </div>
+            <Button
+              variant="outlined"
+              class="border border-reisa-lilac-300 dark:border-white/30 text-reisa-lilac-700 dark:text-white hover:bg-reisa-lilac-600 dark:hover:bg-white hover:text-white dark:hover:text-surface-900 rounded-full font-bold uppercase tracking-wider py-2.5 px-7 transition-all duration-300 text-xs shadow-sm hover:shadow-md"
               :disabled="loading"
               @click="toggleMode"
-            >
-              Go to sign up
-            </BaseButton>
+              label="Go to sign up"
+            />
           </div>
         </div>
       </div>
 
       <div
-        class="flex min-h-155 flex-col justify-center bg-surface-overlay px-6 py-10 text-white md:hidden"
+        class="flex min-h-155 flex-col justify-center bg-surface-0 dark:bg-[oklch(0.18_0.018_285)] px-6 py-10 text-surface-900 dark:text-white md:hidden transition-colors duration-300"
       >
         <div class="mb-8 text-center">
           <div
@@ -223,10 +242,10 @@ function submitAs(nextMode: AuthMode) {
           >
             <span class="text-2xl font-black text-white">A</span>
           </div>
-          <h1 class="text-3xl font-black text-white">
+          <h1 class="text-3xl font-black text-surface-900 dark:text-white">
             {{ mode === "Register" ? "Create account" : "Welcome back" }}
           </h1>
-          <p class="mt-2 text-sm text-white/55">
+          <p class="mt-2 text-sm text-surface-500 dark:text-white/55">
             {{
               mode === "Register"
                 ? "Start with email and password"
@@ -246,7 +265,7 @@ function submitAs(nextMode: AuthMode) {
             type="email"
             autocomplete="email"
             required
-            class="w-full border-white/15 bg-white/5 text-white"
+            class="w-full"
             :error="emailError"
             @blur="emit('validate', 'email')"
           />
@@ -259,50 +278,27 @@ function submitAs(nextMode: AuthMode) {
               mode === 'Register' ? 'new-password' : 'current-password'
             "
             required
-            class="w-full border-white/15 bg-white/5 text-white"
+            class="w-full"
             :error="passwordError"
             @blur="emit('validate', 'password')"
           />
-          <p
-            v-if="error"
-            class="mb-3 rounded-lg px-3 py-2 text-xs text-[--color-error] bg-[oklch(0.65_0.21_15/0.1)]"
-          >
-            {{ error }}
-          </p>
-          <BaseButton
+          <Button
             type="submit"
-            variant="emphasis"
-            class="mt-2 w-full justify-center font-semibold uppercase tracking-wider"
+            class="mt-2 w-full justify-center font-semibold uppercase tracking-wider rounded-full py-2 bg-linear-to-br from-reisa-pink-500 to-reisa-lilac-500 hover:from-reisa-pink-400 hover:to-reisa-lilac-400 border-none text-white transition-all duration-200"
             :disabled="loading"
+            :loading="loading"
           >
-            <Icon
-              :icon="
-                loading
-                  ? 'ic:round-hourglass-empty'
-                  : mode === 'Register'
-                    ? 'ic:round-add'
-                    : 'ic:round-login'
-              "
-              class="inline-block text-base align-[-0.125em]"
-            />
-            {{
-              loading
-                ? "Please wait..."
-                : mode === "Register"
-                  ? "Create account"
-                  : "Log in"
-            }}
-          </BaseButton>
+            {{ mode === "Register" ? "Create account" : "Log in" }}
+          </Button>
         </form>
 
-        <BaseButton
-          variant="outline"
-          class="mt-4 w-full justify-center"
+        <Button
+          variant="outlined"
+          class="mt-4 w-full justify-center border-surface-300 dark:border-white/20 text-surface-700 dark:text-white hover:bg-surface-100 dark:hover:bg-white/10 rounded-full py-2"
           :disabled="loading"
           @click="toggleMode"
-        >
-          {{ mode === "Register" ? "Go to log in" : "Go to sign up" }}
-        </BaseButton>
+          :label="mode === 'Register' ? 'Go to log in' : 'Go to sign up'"
+        />
       </div>
     </div>
   </div>
