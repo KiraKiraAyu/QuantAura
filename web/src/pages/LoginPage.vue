@@ -12,7 +12,6 @@ const router = useRouter()
 
 const mode = ref<AuthMode>("Login")
 const loading = ref(false)
-const error = ref("")
 const form = reactive({ email: "", password: "" })
 
 const emailError = ref("")
@@ -64,7 +63,6 @@ async function submitCredentials() {
     return
   }
   loading.value = true
-  error.value = ""
   try {
     if (mode.value === "Register") {
       await auth.register(form.email, form.password)
@@ -73,8 +71,6 @@ async function submitCredentials() {
     }
     realtime.connect()
     await router.push({ name: "dashboard" })
-  } catch (e: unknown) {
-    error.value = e instanceof Error ? e.message : "Authentication failed"
   } finally {
     loading.value = false
   }
@@ -87,7 +83,6 @@ async function submitCredentials() {
     v-model:email="form.email"
     v-model:password="form.password"
     :loading="loading"
-    :error="error"
     :email-error="emailError"
     :password-error="passwordError"
     @validate="validateForm"

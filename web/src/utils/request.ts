@@ -58,7 +58,7 @@ service.interceptors.response.use(
       error.response?.data?.error ||
       error.response?.data?.message ||
       error.message ||
-      "网络异常";
+      "Network Exception";
 
     toast.error(message);
 

@@ -11,7 +11,6 @@ import { useDashboardPage } from "@/composables/useDashboardPage"
 const {
   activeChart,
   closePosition,
-  connected,
   equity,
   equityHistory,
   events,
@@ -34,7 +33,7 @@ const {
 
 <template>
   <div class="flex flex-col">
-    <DashboardHeader :connected="connected" @refresh="loadAll" />
+    <DashboardHeader @refresh="loadAll" />
 
     <DashboardStats
       :equity="equity"

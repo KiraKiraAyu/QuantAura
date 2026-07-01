@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import Button from "primevue/button"
 
-defineProps<{
-  connected: boolean
-}>()
-
 const emit = defineEmits<{
   refresh: []
 }>()
@@ -19,17 +15,6 @@ const emit = defineEmits<{
       </p>
     </div>
     <div class="flex items-center gap-3">
-      <div
-        class="flex items-center gap-2 px-3 h-11 rounded-xl text-xs bg-surface-50 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 transition-colors"
-      >
-        <span
-          class="w-1.5 h-1.5 rounded-full"
-          :class="connected ? 'bg-success animate-pulse' : 'bg-surface-400 dark:bg-surface-600'"
-        ></span>
-        <span class="text-surface-600 dark:text-surface-400 font-semibold">
-          {{ connected ? "Live Connection" : "Offline" }}
-        </span>
-      </div>
       <Button
         icon="pi pi-refresh"
         label="Refresh"
