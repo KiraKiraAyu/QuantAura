@@ -15,15 +15,15 @@ function decisionClass(decision: string): string {
 }
 
 function executionSummary(exec: Record<string, unknown>): string {
-  const side = exec.side as string | undefined
-  const symbol = exec.symbol as string | undefined
-  const qty = exec.quantity as string | number | undefined
-  const price = exec.price as number | undefined
+  const side = (exec.side as string | null) || null
+  const symbol = (exec.symbol as string | null) || null
+  const qty = (exec.quantity as string | number | null) ?? null
+  const price = (exec.price as number | null) ?? null
   const parts: string[] = []
   if (side) parts.push(side)
   if (symbol) parts.push(symbol)
-  if (qty != null) parts.push(`${qty} qty`)
-  if (price != null) parts.push(`@ $${price}`)
+  if (qty !== null) parts.push(`${qty} qty`)
+  if (price !== null) parts.push(`@ $${price}`)
   return parts.join(" · ")
 }
 </script>

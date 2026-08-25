@@ -52,7 +52,7 @@ defineProps<{
             class="font-mono text-base font-bold text-surface-800 dark:text-surface-200"
           >
             ${{
-              (progress.equity ?? 0).toLocaleString(undefined, {
+              (progress.equity ?? 0).toLocaleString("en-US", {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })

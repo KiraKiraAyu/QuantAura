@@ -7,7 +7,7 @@ import type { LlmProvider } from "@/types/ai-models-ui"
 
 const props = defineProps<{
   open: boolean
-  provider: LlmProvider | undefined
+  provider: LlmProvider | null
   selectedModelId: string
   checking: boolean
 }>()

@@ -21,6 +21,8 @@ export default defineConfigWithVueTs(
   {
     rules: {
       "vue/no-mutating-props": ["error", { shallowOnly: true }],
+      "no-undefined": "error",
+      "no-void": ["error", { allowAsStatement: true }],
     },
   },
 

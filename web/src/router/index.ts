@@ -100,6 +100,8 @@ router.beforeEach(async (to) => {
   if (to.meta.public && auth.isLoggedIn) {
     return { name: "dashboard" }
   }
+
+  return true
 })
 
 export default router

@@ -154,8 +154,8 @@ function decisionToFeedMessages(decision: DecisionPayload): FeedMessage[] {
   }
 
   const messages: FeedMessage[] = []
-  const promptText = payload.prompt as string | undefined
-  const systemPrompt = payload.system_prompt as string | undefined
+  const promptText = (payload.prompt as string | null) || null
+  const systemPrompt = (payload.system_prompt as string | null) || null
   const decisionStartedAt =
     payloadNumber(payload, "decision_started_at") ?? decision.created_at
   const decisionCompletedAt =
@@ -178,25 +178,27 @@ function decisionToFeedMessages(decision: DecisionPayload): FeedMessage[] {
     triggerSource !== "ai_model" ||
     !decision.reason ||
     Boolean(payload.system_note)
-  const systemNote = (payload.system_note as string) || ""
 
   messages.push({
     id: `decision-${decision.id}`,
     role: "trader",
-    title: isFallback
-      ? `System Guard: ${decision.symbol} -> ${decision.decision}`
-      : `AI Decision: ${decision.symbol} -> ${decision.decision}`,
-    content: decision.reason || "",
+    title: `Decision -> ${decision.symbol}`,
+    content: isFallback ? "" : decision.reason,
     timestamp: decisionCompletedAt,
     data: {
       symbol: decision.symbol,
       decision: decision.decision,
       confidence: decision.confidence,
       timeframe: decision.timeframe,
-      correlation_id: payload.correlation_id,
-      trigger_source: triggerSource,
       is_fallback: isFallback,
-      system_note: systemNote,
+      system_note: (payload.system_note as string | null) || null,
+      error_message: isFallback
+        ? (payload.error_message as string | null) ||
+          (payload.system_note as string | null) ||
+          decision.reason
+        : null,
+      fallback_source: (payload.fallback_source as string | null) || null,
+      fallback_rule: (payload.fallback_rule as string | null) || null,
     },
   })
 
@@ -241,12 +243,12 @@ function sameFeed(left: FeedMessage[], right: FeedMessage[]): boolean {
     left.every((message, index) => {
       const other = right[index]
       return (
-        other !== undefined &&
-        message.id === other.id &&
-        message.role === other.role &&
-        message.title === other.title &&
-        message.content === other.content &&
-        message.timestamp === other.timestamp
+        Boolean(other) &&
+        message.id === other?.id &&
+        message.role === other?.role &&
+        message.title === other?.title &&
+        message.content === other?.content &&
+        message.timestamp === other?.timestamp
       )
     })
   )
@@ -349,14 +351,14 @@ export function useTraderDetail(traderId: Ref<string>) {
 
     activityRefreshTimer = setTimeout(() => {
       activityRefreshTimer = null
-      void refreshActivityFeed().catch(() => undefined)
+      void refreshActivityFeed().catch(() => {})
     }, 250)
   }
 
   function startActivityPolling() {
     stopActivityPolling()
     activityPollTimer = setInterval(() => {
-      void refreshActivityFeed().catch(() => undefined)
+      void refreshActivityFeed().catch(() => {})
     }, ACTIVITY_POLL_INTERVAL_MS)
   }
 
@@ -452,9 +454,9 @@ export function useTraderDetail(traderId: Ref<string>) {
 
       switch (ev.type) {
         case "ai_prompt": {
-          const prompt = ev.prompt as string | undefined
-          const systemPrompt = ev.system_prompt as string | undefined
-          const symbol = ev.symbol as string | undefined
+          const prompt = (ev.prompt as string | null) || null
+          const systemPrompt = (ev.system_prompt as string | null) || null
+          const symbol = (ev.symbol as string | null) || null
           const content = systemPrompt
             ? `[System Prompt]\n${systemPrompt}\n\n[User Message]\n${prompt || ""}`
             : prompt || ""
@@ -507,22 +509,23 @@ export function useTraderDetail(traderId: Ref<string>) {
           break
         }
         case "ai_decision": {
-          const decision = ev.decision as Record<string, unknown> | undefined
-          const correlationId = decision?.correlation_id as string | undefined
+          const decision = (ev.decision as Record<string, unknown> | null) ?? null
+          const correlationId = (decision?.correlation_id as string | null) ?? null
           const completedAt =
             decision && typeof decision.completed_at === "number"
               ? decision.completed_at
               : nowSeconds()
 
           // Try to find and finalize an existing streaming message
-          let streamingMsg: FeedMessage | undefined
+          let streamingMsg: FeedMessage | null = null
           if (correlationId) {
-            streamingMsg = feed.value.find(
-              (m) =>
-                m.role === "trader" &&
-                m.streaming === true &&
-                m.data?.correlation_id === correlationId,
-            )
+            streamingMsg =
+              feed.value.find(
+                (m) =>
+                  m.role === "trader" &&
+                  m.streaming === true &&
+                  m.data?.correlation_id === correlationId,
+              ) ?? null
           }
 
           if (streamingMsg) {
@@ -563,7 +566,7 @@ export function useTraderDetail(traderId: Ref<string>) {
           break
         }
         case "trade_execution": {
-          const trade = ev.trade as Record<string, unknown> | undefined
+          const trade = (ev.trade as Record<string, unknown> | null) ?? null
           // Attach execution data to the most recent trader message
           const lastTrader = [...feed.value]
             .reverse()
@@ -585,7 +588,7 @@ export function useTraderDetail(traderId: Ref<string>) {
           break
         }
         case "position_update": {
-          const positions = ev.positions as PositionPayload[] | undefined
+          const positions = (ev.positions as PositionPayload[] | null) ?? null
           // Positions are real-time data shown in the stats bar, not in the timeline
           if (Array.isArray(positions)) {
             updatePositions(positions)
@@ -620,7 +623,7 @@ export function useTraderDetail(traderId: Ref<string>) {
         case "scan_schedule": {
           // Real-time update from backend: next_scan_at changed
           nextScanAt.value =
-            (ev.next_scan_at as number | null | undefined) ?? null
+            typeof ev.next_scan_at === "number" ? ev.next_scan_at : null
           break
         }
       }

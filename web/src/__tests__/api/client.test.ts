@@ -54,7 +54,9 @@ describe("Request Client", () => {
 
     const result = await request.get("/api/traders/1")
     expect(result).toEqual(mockData)
-    expect(axiosInstance.get).toHaveBeenCalledWith("/api/traders/1", undefined)
+    expect(vi.mocked(axiosInstance.get).mock.calls[0]?.[0]).toBe(
+      "/api/traders/1",
+    )
   })
 
   it("unwraps successful API response data for POST", async () => {
@@ -72,10 +74,11 @@ describe("Request Client", () => {
 
     const result = await request.post("/api/traders", postPayload)
     expect(result).toEqual(responseData)
-    expect(axiosInstance.post).toHaveBeenCalledWith(
+    expect(vi.mocked(axiosInstance.post).mock.calls[0]?.[0]).toBe(
       "/api/traders",
+    )
+    expect(vi.mocked(axiosInstance.post).mock.calls[0]?.[1]).toEqual(
       postPayload,
-      undefined,
     )
   })
 
@@ -92,9 +95,8 @@ describe("Request Client", () => {
 
     const result = await request.delete("/api/traders/1")
     expect(result).toEqual({ message: "Deleted" })
-    expect(axiosInstance.delete).toHaveBeenCalledWith(
+    expect(vi.mocked(axiosInstance.delete).mock.calls[0]?.[0]).toBe(
       "/api/traders/1",
-      undefined,
     )
   })
 

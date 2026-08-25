@@ -7,6 +7,7 @@ import {
   normalizeSide,
   isLongSide,
   setDefaultTimeZone,
+  resetDefaultTimeZone,
   getDefaultTimeZone,
   detectBrowserTimeZone,
 } from "@/utils/format"
@@ -42,7 +43,6 @@ describe("format utils", () => {
     expect(fmtUsd(1234.56)).toBe("1,234.56")
     expect(fmtUsd(0)).toBe("0.00")
     expect(fmtUsd(null)).toBe("0.00")
-    expect(fmtUsd(undefined)).toBe("0.00")
     expect(fmtUsd(NaN)).toBe("0.00")
     expect(fmtUsd(1000000)).toBe("1,000,000.00")
   })
@@ -65,12 +65,14 @@ describe("format utils", () => {
   it("sets and gets default timezone", () => {
     setDefaultTimeZone("America/New_York")
     expect(getDefaultTimeZone()).toBe("America/New_York")
-    setDefaultTimeZone(undefined)
-    expect(getDefaultTimeZone()).toBeUndefined()
+    resetDefaultTimeZone()
+    expect(typeof getDefaultTimeZone()).toBe("string")
+    expect(getDefaultTimeZone().length).toBeGreaterThan(0)
   })
 
-  it("detects browser timezone safely", () => {
+  it("detects browser timezone safely as string", () => {
     const tz = detectBrowserTimeZone()
-    expect(typeof tz === "string" || tz === undefined).toBe(true)
+    expect(typeof tz).toBe("string")
+    expect(tz.length).toBeGreaterThan(0)
   })
 })

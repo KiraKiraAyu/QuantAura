@@ -209,7 +209,7 @@ export function useAIModelsSettings() {
     providerCheckModalOpen.value = false
   }
 
-  async function checkProvider(provider: LlmProvider | undefined) {
+  async function checkProvider(provider: LlmProvider | null) {
     if (!provider || !providerCheckModelId.value.trim()) return
 
     checkingProvider.value = true

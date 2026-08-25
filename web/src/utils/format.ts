@@ -1,4 +1,4 @@
-export type DateInput = Date | number | string | null | undefined
+export type DateInput = Date | number | string | null
 
 interface FormatDateOptions {
   fallback?: string
@@ -9,31 +9,39 @@ interface FormatDateOptions {
 const DEFAULT_LOCALE = "en-US"
 const TIMESTAMP_MS_THRESHOLD = 1_000_000_000_000
 
-/** Global default timezone, set by the settings store on app init. */
-let defaultTimeZone: string | undefined
-
-/** Set the global default timezone used by all format* functions. */
-export function setDefaultTimeZone(tz: string | undefined): void {
-  defaultTimeZone = tz
-}
-
-/** Get the current global default timezone. */
-export function getDefaultTimeZone(): string | undefined {
-  return defaultTimeZone
-}
-
-/** Detect the browser's local IANA timezone (e.g. "Asia/Shanghai"). */
-export function detectBrowserTimeZone(): string | undefined {
+/** Detect the browser's local IANA timezone (e.g. "Asia/Shanghai"), falling back to "UTC". */
+export function detectBrowserTimeZone(): string {
   try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
   } catch {
-    return undefined
+    return "UTC"
   }
 }
 
+/** Global default timezone, set by the settings store on app init. Guaranteed string. */
+let defaultTimeZone: string = detectBrowserTimeZone()
+
+/** Set the global default timezone used by all format* functions. */
+export function setDefaultTimeZone(tz: string): void {
+  const trimmed = tz.trim()
+  if (trimmed) {
+    defaultTimeZone = trimmed
+  }
+}
+
+/** Reset global default timezone to browser's local timezone. */
+export function resetDefaultTimeZone(): void {
+  defaultTimeZone = detectBrowserTimeZone()
+}
+
+/** Get the current global default timezone. */
+export function getDefaultTimeZone(): string {
+  return defaultTimeZone
+}
+
 /** Format a USD amount with 2 decimal places and thousands separators. */
-export function fmtUsd(value: number | null | undefined): string {
-  if (value == null || Number.isNaN(value)) return "0.00"
+export function fmtUsd(value: number | null): string {
+  if (value === null || Number.isNaN(value)) return "0.00"
   return value.toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -100,11 +108,11 @@ function formatDateInput(
   const date = toDate(value)
   if (!date) return options.fallback ?? "-"
 
-  const tz = options.timeZone ?? defaultTimeZone
+  const tz = options.timeZone || defaultTimeZone
 
-  return new Intl.DateTimeFormat(options.locale ?? DEFAULT_LOCALE, {
+  return new Intl.DateTimeFormat(options.locale || DEFAULT_LOCALE, {
     ...dateOptions,
-    ...(tz ? { timeZone: tz } : {}),
+    timeZone: tz,
   }).format(date)
 }
 

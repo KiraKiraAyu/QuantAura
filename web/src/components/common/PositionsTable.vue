@@ -24,7 +24,7 @@ const emit = defineEmits<{
   close: [traderId: string, symbol: string, side: string]
 }>()
 
-function fmt(value: number | null | undefined, digits = 2) {
+function fmt(value: number | null, digits = 2) {
   return (value ?? 0).toLocaleString("en-US", {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
