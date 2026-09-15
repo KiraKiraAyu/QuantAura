@@ -158,8 +158,7 @@ impl BacktestService {
 
     pub fn stop(&self, run_id: String) -> AppResult<BacktestRunActionPayload> {
         let mut mgr = self.backtest_manager.lock().unwrap();
-        mgr.stop(&run_id)
-            .map_err(AppError::BadRequest)?;
+        mgr.stop(&run_id).map_err(AppError::BadRequest)?;
 
         Ok(BacktestRunActionPayload {
             run_id,
@@ -269,8 +268,10 @@ impl BacktestRunner {
         }
 
         // Build per-symbol kline lookup maps and collect all unique timestamps
-        let mut kline_maps: HashMap<String, BTreeMap<i64, crate::clients::market_data::MarketKline>> =
-            HashMap::new();
+        let mut kline_maps: HashMap<
+            String,
+            BTreeMap<i64, crate::clients::market_data::MarketKline>,
+        > = HashMap::new();
         let mut all_timestamps: BTreeSet<i64> = BTreeSet::new();
 
         for (symbol, klines) in &self.klines_by_symbol {
@@ -560,8 +561,14 @@ async fn fetch_klines_from_binance(
                 low: r[3].as_str()?.parse().ok()?,
                 close: r[4].as_str()?.parse().ok()?,
                 volume: r[5].as_str()?.parse().ok().unwrap_or(0.0),
-                close_time: r[6].as_i64().unwrap_or_else(|| r[0].as_i64().unwrap_or(0) + 300_000),
-                quote_volume: r.get(7).and_then(|v| v.as_str()).and_then(|s| s.parse().ok()).unwrap_or(0.0),
+                close_time: r[6]
+                    .as_i64()
+                    .unwrap_or_else(|| r[0].as_i64().unwrap_or(0) + 300_000),
+                quote_volume: r
+                    .get(7)
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(0.0),
             })
         })
         .collect()

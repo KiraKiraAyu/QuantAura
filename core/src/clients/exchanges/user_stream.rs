@@ -141,7 +141,10 @@ pub fn spawn_exchange_user_stream_reader(
         let (mut ws_stream, _) = match connect {
             Ok(v) => v,
             Err(err) => {
-                warn!("{} user stream connect failed: {}", session.exchange_type, err);
+                warn!(
+                    "{} user stream connect failed: {}",
+                    session.exchange_type, err
+                );
                 let _ = tx.send(ExchangeUserStreamEvent::Unknown).await;
                 return;
             }
@@ -149,15 +152,20 @@ pub fn spawn_exchange_user_stream_reader(
 
         for text in &session.initial_text_messages {
             if let Err(err) = ws_stream.send(Message::Text(text.clone())).await {
-                warn!("{} user stream initial message failed: {}", session.exchange_type, err);
+                warn!(
+                    "{} user stream initial message failed: {}",
+                    session.exchange_type, err
+                );
                 let _ = tx.send(ExchangeUserStreamEvent::Unknown).await;
                 return;
             }
         }
 
         let (mut write, mut read) = ws_stream.split();
-        let heartbeat_enabled = session.heartbeat_text.is_some() && session.heartbeat_interval_secs > 0;
-        let mut heartbeat = time::interval(Duration::from_secs(session.heartbeat_interval_secs.max(1)));
+        let heartbeat_enabled =
+            session.heartbeat_text.is_some() && session.heartbeat_interval_secs > 0;
+        let mut heartbeat =
+            time::interval(Duration::from_secs(session.heartbeat_interval_secs.max(1)));
         heartbeat.set_missed_tick_behavior(MissedTickBehavior::Delay);
 
         loop {

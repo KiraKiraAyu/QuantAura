@@ -3,6 +3,7 @@ export interface UpdateModelConfigRequest {
 }
 
 export interface ModelProviderProbeRequest {
+  providerId?: string
   providerType: string
   apiKey?: string
   baseUrl?: string

@@ -1,8 +1,8 @@
 import { onMounted, ref, watch } from "vue"
 import {
+  createBacktestRunApi,
   getBacktestRunsApi,
-  startBacktestApi,
-  stopBacktestApi,
+  stopBacktestRunApi,
 } from "@/api/backtest"
 import { useRealtimeStore } from "@/stores/realtime"
 import type {
@@ -42,7 +42,7 @@ export function useBacktestPage(traderId: string) {
     try {
       const startTs = Math.floor(new Date(cfg.value.startDate).getTime() / 1000)
       const endTs = Math.floor(new Date(cfg.value.endDate).getTime() / 1000)
-      await startBacktestApi({
+      await createBacktestRunApi({
         trader_id: traderId,
         interval: cfg.value.interval,
         start_ts: startTs,
@@ -56,7 +56,7 @@ export function useBacktestPage(traderId: string) {
   }
 
   async function stopRun(id: string) {
-    await stopBacktestApi({ run_id: id })
+    await stopBacktestRunApi(id)
     await loadRuns()
   }
 

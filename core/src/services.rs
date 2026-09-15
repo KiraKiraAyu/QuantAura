@@ -9,5 +9,6 @@ pub mod llm;
 pub mod market;
 pub mod models;
 pub mod strategies;
+pub mod system;
 pub mod trading;
 pub mod trading_runtime;

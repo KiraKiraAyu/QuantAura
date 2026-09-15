@@ -341,15 +341,8 @@ mod tests {
             },
         ];
 
-        let prompt = build_trading_prompt(
-            "BTCUSDT",
-            &m,
-            &metrics,
-            &[],
-            &timeline,
-            1_755_436_200,
-            "",
-        );
+        let prompt =
+            build_trading_prompt("BTCUSDT", &m, &metrics, &[], &timeline, 1_755_436_200, "");
 
         assert!(prompt.contains("your recent trading history"));
         assert!(prompt.contains("[[timeline]]"));

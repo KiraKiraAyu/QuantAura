@@ -83,24 +83,27 @@ impl BacktestRepo {
             .map(|_| ())
     }
 
-    pub async fn list_runs(&self, limit: i64) -> Result<Vec<Value>, DbErr> {
+    pub async fn list_runs(
+        &self,
+        limit: i64,
+    ) -> Result<Vec<crate::contracts::backtest::BacktestRunRecord>, DbErr> {
         backtest_runs::Entity::find()
             .order_by_desc(backtest_runs::Column::CreatedAt)
             .limit(limit.max(0) as u64)
             .all(&self.db)
             .await
-            .map(|rows| rows.into_iter().map(run_list_payload).collect())
+            .map(|rows| rows.into_iter().map(run_record_payload).collect())
     }
 }
 
-fn run_list_payload(row: backtest_runs::Model) -> Value {
+fn run_record_payload(row: backtest_runs::Model) -> crate::contracts::backtest::BacktestRunRecord {
     let summary: Value = serde_json::from_str(row.summary_json.as_str()).unwrap_or(json!({}));
-    json!({
-        "run_id": row.run_id,
-        "state": row.state,
-        "last_error": row.last_error,
-        "summary": summary,
-        "created_at": dt_to_ts(row.created_at),
-        "updated_at": dt_to_ts(row.updated_at),
-    })
+    crate::contracts::backtest::BacktestRunRecord {
+        run_id: row.run_id,
+        state: row.state,
+        last_error: row.last_error,
+        summary,
+        created_at: dt_to_ts(row.created_at),
+        updated_at: dt_to_ts(row.updated_at),
+    }
 }

@@ -8,9 +8,16 @@ vi.mock("axios", async () => {
   const actual = await vi.importActual<typeof import("axios")>("axios")
   const mockAxiosInstance = {
     interceptors: {
-      request: { use: vi.fn<() => void>() },
+      request: {
+        use: vi.fn<(onFulfilled?: (config: any) => any) => void>(
+          (onFulfilled?: (config: any) => any) => {
+            mockAxiosInstance.requestInterceptor = onFulfilled
+          },
+        ),
+      },
       response: { use: vi.fn<() => void>() },
     },
+    requestInterceptor: undefined as ((config: any) => any) | undefined,
     get: vi.fn<() => Promise<unknown>>(),
     post: vi.fn<() => Promise<unknown>>(),
     put: vi.fn<() => Promise<unknown>>(),
@@ -101,10 +108,30 @@ describe("Request Client", () => {
   })
 
   it("handles request interceptor authorization header injection", () => {
-    const authStore = useAuthStore()
-    authStore.setToken("my-jwt-token")
+    const axiosInstance = axios.create() as unknown as {
+      requestInterceptor?: (config: {
+        headers?: Record<string, string>
+      }) => { headers?: Record<string, string> }
+    }
+    expect(axiosInstance.requestInterceptor).toBeDefined()
+    const interceptor = axiosInstance.requestInterceptor!
 
-    expect(authStore.isLoggedIn).toBe(true)
-    expect(authStore.token).toBe("my-jwt-token")
+    const authStore = useAuthStore()
+
+    // 1. When logged out, no Authorization header is injected
+    authStore.setToken("")
+    const configLoggedOut = interceptor({ headers: {} })
+    const loggedOutAuth = (configLoggedOut.headers as any)?.get
+      ? (configLoggedOut.headers as any).get("Authorization")
+      : configLoggedOut.headers?.Authorization
+    expect(loggedOutAuth).toBeUndefined()
+
+    // 2. When logged in, Authorization header is injected as Bearer <token>
+    authStore.setToken("my-jwt-token")
+    const configLoggedIn = interceptor({ headers: {} })
+    const loggedInAuth = (configLoggedIn.headers as any)?.get
+      ? (configLoggedIn.headers as any).get("Authorization")
+      : configLoggedIn.headers?.Authorization
+    expect(loggedInAuth).toBe("Bearer my-jwt-token")
   })
 })

@@ -1,10 +1,19 @@
 use quantaura::*;
 
+use std::time::Duration;
+
 use tokio::net::TcpListener;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::services::trading_runtime::service::TradingRuntimeService;
+
+/// Upper bound for the HTTP graceful drain.
+///
+/// Long-lived streaming connections (SSE) only end when the peer disconnects, so
+/// an unbounded drain could keep the process alive forever and never stop the
+/// runtime trading engines.
+const SHUTDOWN_DRAIN_TIMEOUT_SECS: u64 = 15;
 
 #[tokio::main]
 async fn main() {
@@ -49,11 +58,20 @@ async fn main() {
     );
 
     let server =
-        axum::serve(listener, app).with_graceful_shutdown(shutdown_signal(trading_runtime));
+        axum::serve(listener, app).with_graceful_shutdown(shutdown_signal(trading_runtime.clone()));
 
     if let Err(err) = server.await {
         error!("server error: {err}");
         std::process::exit(1);
+    }
+
+    info!("HTTP server drained all connections; stopping runtime trading engines");
+    stop_runtime_engines(&trading_runtime).await;
+}
+
+async fn stop_runtime_engines(trading_runtime: &TradingRuntimeService) {
+    if let Err(err) = trading_runtime.shutdown_all().await {
+        error!("failed to shutdown runtime trading engines cleanly: {err}");
     }
 }
 
@@ -95,9 +113,16 @@ async fn shutdown_signal(trading_runtime: TradingRuntimeService) {
         _ = terminate => {},
     }
 
-    info!("shutdown signal received, stopping runtime trading engines");
+    info!("shutdown signal received, initiating graceful server drain");
 
-    if let Err(err) = trading_runtime.shutdown_all().await {
-        error!("failed to shutdown runtime trading engines cleanly: {err}");
-    }
+    // Bound the drain. Streaming clients hold their connections open forever, so
+    // without this the engine shutdown below would never be reached.
+    tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_secs(SHUTDOWN_DRAIN_TIMEOUT_SECS)).await;
+        warn!(
+            "HTTP drain exceeded {SHUTDOWN_DRAIN_TIMEOUT_SECS}s, forcing shutdown with stream connections still open"
+        );
+        stop_runtime_engines(&trading_runtime).await;
+        std::process::exit(0);
+    });
 }

@@ -19,6 +19,7 @@ export const useRealtimeStore = defineStore("realtime", () => {
   const equitySnapshot = ref<Record<string, unknown> | null>(null)
   const positionsByTrader = ref<Record<string, PositionPayload[]>>({})
   const engineStatus = ref<Record<string, string>>({})
+  const resyncCount = ref(0)
 
   let client: SseClient | null = null
 
@@ -115,6 +116,9 @@ export const useRealtimeStore = defineStore("realtime", () => {
           engineStatus.value[ev.trader_id as string] = ev.status as string
         }
         break
+      case "resync_required":
+        resyncCount.value++
+        break
     }
   }
 
@@ -176,6 +180,7 @@ export const useRealtimeStore = defineStore("realtime", () => {
     equitySnapshot,
     positions,
     engineStatus,
+    resyncCount,
     connect,
     clearPositions,
     disconnect,
@@ -183,5 +188,6 @@ export const useRealtimeStore = defineStore("realtime", () => {
     removePosition,
     replacePositionsByTrader,
     setPositionsForTrader,
+    dispatchEventData,
   }
 })

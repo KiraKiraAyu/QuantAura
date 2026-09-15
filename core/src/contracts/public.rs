@@ -65,16 +65,16 @@ impl From<MarketSymbol> for ExchangeSymbolPayload {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KlinePayload {
-    #[serde(rename = "openTime")]
+    #[serde(rename = "openTime", alias = "open_time")]
     pub open_time: i64,
     pub open: f64,
     pub high: f64,
     pub low: f64,
     pub close: f64,
     pub volume: f64,
-    #[serde(rename = "quoteVolume")]
+    #[serde(rename = "quoteVolume", alias = "quote_volume")]
     pub quote_volume: f64,
-    #[serde(rename = "closeTime")]
+    #[serde(rename = "closeTime", alias = "close_time")]
     pub close_time: i64,
 }
 
@@ -102,7 +102,7 @@ pub struct ExchangeSymbolsPayload {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct SupportedProviderTypePayload {
-    #[serde(rename = "providerType")]
+    #[serde(rename = "providerType", alias = "provider_type")]
     pub provider_type: String,
     pub name: String,
 }

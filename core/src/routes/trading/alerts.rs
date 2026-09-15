@@ -17,16 +17,17 @@ pub fn router() -> Router<AppState> {
             "/runtime-alert-controls",
             get(alerts::runtime_alert_controls),
         )
+        // Alert controls are addressed by the trader they apply to.
         .route(
-            "/runtime-alert-controls/mute",
+            "/runtime-alert-controls/{trader_id}/mute",
             put(alerts::mute_runtime_alerts),
         )
         .route(
-            "/runtime-alert-controls/unmute",
+            "/runtime-alert-controls/{trader_id}/unmute",
             put(alerts::unmute_runtime_alerts),
         )
         .route(
-            "/runtime-alert-controls/ack",
+            "/runtime-alert-controls/{trader_id}/ack",
             put(alerts::ack_runtime_alerts),
         )
 }

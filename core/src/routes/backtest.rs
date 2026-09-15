@@ -1,14 +1,16 @@
 use axum::{
     Router,
-    routing::{get, post},
+    routing::{delete, post},
 };
 
 use crate::{http::handlers::backtest::*, state::AppState};
 
 pub fn router() -> Router<AppState> {
     Router::new()
-        .route("/start", post(handle_backtest_start))
-        .route("/stop", post(handle_backtest_stop))
-        .route("/delete", post(handle_backtest_delete))
-        .route("/runs", get(handle_backtest_runs))
+        .route(
+            "/runs",
+            post(handle_backtest_start).get(handle_backtest_runs),
+        )
+        .route("/runs/{run_id}/stop", post(handle_backtest_stop))
+        .route("/runs/{run_id}", delete(handle_backtest_delete))
 }

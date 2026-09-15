@@ -8,23 +8,29 @@ pub struct UpdateModelConfigRequest {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ModelProviderProbeRequest {
-    #[serde(rename = "providerType")]
+    /// Stored provider the probe refers to. Lets the backend resolve a masked
+    /// `apiKey` back to the credential it already holds.
+    #[serde(default, rename = "providerId", alias = "provider_id")]
+    pub provider_id: Option<String>,
+    #[serde(rename = "providerType", alias = "provider_type")]
     pub provider_type: String,
-    #[serde(default, rename = "apiKey")]
+    #[serde(default, rename = "apiKey", alias = "api_key")]
     pub api_key: String,
-    #[serde(default, rename = "baseUrl")]
+    #[serde(default, rename = "baseUrl", alias = "base_url")]
     pub base_url: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ProviderAvailabilityRequest {
-    #[serde(rename = "providerType")]
+    #[serde(default, rename = "providerId", alias = "provider_id")]
+    pub provider_id: Option<String>,
+    #[serde(rename = "providerType", alias = "provider_type")]
     pub provider_type: String,
-    #[serde(default, rename = "apiKey")]
+    #[serde(default, rename = "apiKey", alias = "api_key")]
     pub api_key: String,
-    #[serde(default, rename = "baseUrl")]
+    #[serde(default, rename = "baseUrl", alias = "base_url")]
     pub base_url: String,
-    #[serde(default, rename = "modelId")]
+    #[serde(default, rename = "modelId", alias = "model_id")]
     pub model_id: String,
 }
 
@@ -32,12 +38,12 @@ pub struct ProviderAvailabilityRequest {
 pub struct ProviderConfigInput {
     pub id: Option<String>,
     pub name: String,
-    #[serde(rename = "providerType")]
+    #[serde(rename = "providerType", alias = "provider_type")]
     pub provider_type: String,
     pub enabled: bool,
-    #[serde(default, rename = "apiKey")]
+    #[serde(default, rename = "apiKey", alias = "api_key")]
     pub api_key: String,
-    #[serde(default, rename = "baseUrl")]
+    #[serde(default, rename = "baseUrl", alias = "base_url")]
     pub base_url: String,
     #[serde(default)]
     pub models: Vec<ModelConfigInput>,
@@ -47,7 +53,7 @@ pub struct ProviderConfigInput {
 pub struct ModelConfigInput {
     pub id: Option<String>,
     pub name: String,
-    #[serde(rename = "modelId")]
+    #[serde(rename = "modelId", alias = "model_id")]
     pub model_id: String,
 }
 
@@ -77,12 +83,12 @@ pub struct ProviderAvailabilityPayload {
 pub struct SafeProviderConfig {
     pub id: String,
     pub name: String,
-    #[serde(rename = "providerType")]
+    #[serde(rename = "providerType", alias = "provider_type")]
     pub provider_type: String,
     pub enabled: bool,
-    #[serde(rename = "apiKey")]
+    #[serde(rename = "apiKey", alias = "api_key")]
     pub api_key: String,
-    #[serde(rename = "baseUrl")]
+    #[serde(rename = "baseUrl", alias = "base_url")]
     pub base_url: String,
     pub models: Vec<SafeModelConfig>,
 }
@@ -90,10 +96,10 @@ pub struct SafeProviderConfig {
 #[derive(Debug, Clone, Serialize)]
 pub struct SafeModelConfig {
     pub id: String,
-    #[serde(rename = "providerId")]
+    #[serde(rename = "providerId", alias = "provider_id")]
     pub provider_id: String,
     pub name: String,
-    #[serde(rename = "modelId")]
+    #[serde(rename = "modelId", alias = "model_id")]
     pub model_id: String,
 }
 

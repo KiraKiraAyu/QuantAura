@@ -12,13 +12,18 @@ pub struct BacktestStartRequest {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct BacktestRunIdRequest {
-    pub run_id: String,
-}
-
-#[derive(Debug, Deserialize)]
 pub struct BacktestQueryParams {
     pub limit: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BacktestRunRecord {
+    pub run_id: String,
+    pub state: String,
+    pub last_error: String,
+    pub summary: Value,
+    pub created_at: i64,
+    pub updated_at: i64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -34,6 +39,6 @@ pub struct BacktestMessagePayload {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct BacktestRunsPayload {
-    pub runs: Vec<Value>,
+    pub runs: Vec<BacktestRunRecord>,
     pub count: usize,
 }

@@ -40,8 +40,9 @@ pub async fn trades(
     State(app): State<state::AppState>,
     Query(q): Query<PaginationQuery>,
 ) -> Result<Json<ApiResponse<TradeListPayload>>> {
+    let (trader_id, limit, offset) = q.sanitized();
     let payload = trading_service(&app)
-        .trades(q.trader_id, q.limit, q.offset)
+        .trades(trader_id, limit, offset)
         .await?;
     Ok(Json(ApiResponse::success(Some(payload), None)))
 }

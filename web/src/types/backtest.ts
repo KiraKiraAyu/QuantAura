@@ -7,12 +7,7 @@ export interface BacktestStartRequest {
   interval?: string | null
 }
 
-export interface BacktestRunIdRequest {
-  run_id: string
-}
-
 export interface BacktestQueryParams {
-  run_id?: string | null
   limit?: number | null
 }
 

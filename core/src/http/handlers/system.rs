@@ -6,8 +6,7 @@ use crate::{
         HealthResponse, SettingsResponse, SystemConfigResponse, UpdateSettingsRequest,
     },
     error::Result,
-    http::response::ApiResponse,
-    repositories::AppSettingsRepo,
+    http::response::{ApiResponse, AppJson},
     state,
 };
 
@@ -46,13 +45,10 @@ pub async fn config(
     Ok(Json(ApiResponse::success(Some(payload), None)))
 }
 
-const TIMEZONE_KEY: &str = "timezone";
-
 pub async fn get_settings(
     State(shared_state): State<state::AppState>,
 ) -> Result<Json<ApiResponse<SettingsResponse>>> {
-    let repo = AppSettingsRepo::new(shared_state.db.clone());
-    let timezone = repo.get(TIMEZONE_KEY).await.unwrap_or(None);
+    let timezone = shared_state.services.system_service.get_timezone().await?;
 
     let payload = SettingsResponse { timezone };
 
@@ -61,20 +57,13 @@ pub async fn get_settings(
 
 pub async fn update_settings(
     State(shared_state): State<state::AppState>,
-    Json(body): Json<UpdateSettingsRequest>,
+    AppJson(body): AppJson<UpdateSettingsRequest>,
 ) -> Result<Json<ApiResponse<SettingsResponse>>> {
-    let repo = AppSettingsRepo::new(shared_state.db.clone());
-
-    if let Some(ref tz) = body.timezone {
-        let tz = tz.trim();
-        if tz.is_empty() {
-            repo.delete(TIMEZONE_KEY).await?;
-        } else {
-            repo.set(TIMEZONE_KEY, tz).await?;
-        }
-    }
-
-    let timezone = repo.get(TIMEZONE_KEY).await.unwrap_or(None);
+    let timezone = shared_state
+        .services
+        .system_service
+        .update_timezone(body.timezone.as_deref())
+        .await?;
 
     let payload = SettingsResponse { timezone };
 

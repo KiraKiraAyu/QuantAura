@@ -57,54 +57,6 @@ fn next_aligned_scan_delay(now: Duration, interval_secs: u64) -> Duration {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::time::Duration;
-
-    #[test]
-    fn live_circuit_breaker_event_is_terminal_and_explains_shutdown() {
-        let realtime_hub = crate::realtime::RealtimeHub::new();
-        let mut receiver = realtime_hub.subscribe();
-        publish_live_circuit_breaker_event(&realtime_hub, "trader-1", 5);
-        let event = receiver.try_recv().expect("expected shutdown event");
-
-        let crate::realtime::RealtimeEvent::EngineStatus {
-            trader_id,
-            status,
-            message,
-        } = event.as_ref()
-        else {
-            panic!("expected an engine status event");
-        };
-
-        assert_eq!(trader_id, "trader-1");
-        assert_eq!(status, "stopped");
-        assert_eq!(
-            message,
-            "live circuit breaker opened after 5 consecutive failures"
-        );
-    }
-
-    #[test]
-    fn aligned_scan_delay_preserves_subsecond_precision() {
-        assert_eq!(
-            next_aligned_scan_delay(Duration::from_millis(299_200), 300),
-            Duration::from_millis(800)
-        );
-        assert_eq!(next_aligned_scan(Duration::from_millis(299_200), 300), 300);
-    }
-
-    #[test]
-    fn aligned_scan_delay_is_zero_at_an_exact_boundary() {
-        assert_eq!(
-            next_aligned_scan_delay(Duration::from_secs(300), 300),
-            Duration::ZERO
-        );
-        assert_eq!(next_aligned_scan(Duration::from_secs(300), 300), 300);
-    }
-}
-
 /// Update `next_scan_at` in the runtime engine state and push an SSE event
 /// so the frontend countdown updates in real time without relying on polling.
 fn update_next_scan_at(state: &SharedState, trader_id: &str, next_scan: Option<u64>) {
@@ -171,8 +123,7 @@ pub async fn run_trader_loop(
     {
         match init_exchange_user_stream(adapter).await {
             Ok(session) => {
-                let reader_rx =
-                    spawn_exchange_user_stream_reader(session.clone(), stop_rx.clone());
+                let reader_rx = spawn_exchange_user_stream_reader(session.clone(), stop_rx.clone());
                 user_stream_rx = Some(reader_rx);
                 user_stream_session = Some(session);
                 info!(
@@ -546,7 +497,9 @@ pub async fn process_cycle(
     live_adapter: Option<&dyn LiveExchangeAdapter>,
     now_ts: i64,
     backtest_mode: bool,
-    historical_klines_by_symbol: Option<&HashMap<String, Vec<crate::clients::market_data::MarketKline>>>,
+    historical_klines_by_symbol: Option<
+        &HashMap<String, Vec<crate::clients::market_data::MarketKline>>,
+    >,
 ) -> Result<(), AppError> {
     let cycle_started_at = now_ts;
 
@@ -854,4 +807,52 @@ pub async fn process_cycle(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    #[test]
+    fn live_circuit_breaker_event_is_terminal_and_explains_shutdown() {
+        let realtime_hub = crate::realtime::RealtimeHub::new();
+        let mut receiver = realtime_hub.subscribe();
+        publish_live_circuit_breaker_event(&realtime_hub, "trader-1", 5);
+        let event = receiver.try_recv().expect("expected shutdown event");
+
+        let crate::realtime::RealtimeEvent::EngineStatus {
+            trader_id,
+            status,
+            message,
+        } = event.as_ref()
+        else {
+            panic!("expected an engine status event");
+        };
+
+        assert_eq!(trader_id, "trader-1");
+        assert_eq!(status, "stopped");
+        assert_eq!(
+            message,
+            "live circuit breaker opened after 5 consecutive failures"
+        );
+    }
+
+    #[test]
+    fn aligned_scan_delay_preserves_subsecond_precision() {
+        assert_eq!(
+            next_aligned_scan_delay(Duration::from_millis(299_200), 300),
+            Duration::from_millis(800)
+        );
+        assert_eq!(next_aligned_scan(Duration::from_millis(299_200), 300), 300);
+    }
+
+    #[test]
+    fn aligned_scan_delay_is_zero_at_an_exact_boundary() {
+        assert_eq!(
+            next_aligned_scan_delay(Duration::from_secs(300), 300),
+            Duration::ZERO
+        );
+        assert_eq!(next_aligned_scan(Duration::from_secs(300), 300), 300);
+    }
 }

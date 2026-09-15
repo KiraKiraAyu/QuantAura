@@ -19,8 +19,9 @@ pub async fn orders(
     State(app): State<state::AppState>,
     Query(q): Query<PaginationQuery>,
 ) -> Result<Json<ApiResponse<OrderListPayload>>> {
+    let (trader_id, limit, offset) = q.sanitized();
     let payload = trading_service(&app)
-        .orders(q.trader_id, q.limit, q.offset)
+        .orders(trader_id, limit, offset)
         .await?;
     Ok(Json(ApiResponse::success(Some(payload), None)))
 }
@@ -38,8 +39,9 @@ pub async fn open_orders(
     State(app): State<state::AppState>,
     Query(q): Query<PaginationQuery>,
 ) -> Result<Json<ApiResponse<OrderListPayload>>> {
+    let (trader_id, limit, offset) = q.sanitized();
     let payload = trading_service(&app)
-        .open_orders(q.trader_id, q.limit, q.offset)
+        .open_orders(trader_id, limit, offset)
         .await?;
     Ok(Json(ApiResponse::success(Some(payload), None)))
 }

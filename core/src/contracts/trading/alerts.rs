@@ -35,22 +35,19 @@ pub struct RuntimeAlertControlsQuery {
     pub trader_id: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct RuntimeAlertControlTargetRequest {
-    pub trader_id: Option<String>,
-}
-
+/// Body of `PUT /runtime-alert-controls/{trader_id}/mute`. The target trader is
+/// carried by the path, so the body only describes the mute window.
 #[derive(Debug, Deserialize)]
 pub struct RuntimeAlertMuteRequest {
-    pub trader_id: Option<String>,
     pub mute_minutes: Option<i64>,
     pub mute_until: Option<i64>,
     pub reason: Option<String>,
 }
 
+/// Body of `PUT /runtime-alert-controls/{trader_id}/ack`. The target trader is
+/// carried by the path, so the body only carries the operator's note.
 #[derive(Debug, Deserialize)]
 pub struct RuntimeAlertAckRequest {
-    pub trader_id: Option<String>,
     pub note: Option<String>,
 }
 

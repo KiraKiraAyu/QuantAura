@@ -5,10 +5,10 @@ use axum::{
 
 use crate::{
     contracts::strategies::{
-        CreateStrategyRequest, DuplicateStrategyRequest,
-        PreviewPromptPayload, PreviewPromptRequest, StrategyCreatedPayload,
-        StrategyDefaultConfigPayload, StrategyListPayload, StrategyMessagePayload, StrategyPayload,
-        StrategyTestRunPayload, StrategyTestRunRequest, UpdateStrategyRequest,
+        CreateStrategyRequest, DuplicateStrategyRequest, PreviewPromptPayload,
+        PreviewPromptRequest, StrategyCreatedPayload, StrategyDefaultConfigPayload,
+        StrategyListPayload, StrategyMessagePayload, StrategyPayload, StrategyTestRunPayload,
+        StrategyTestRunRequest, UpdateStrategyRequest,
     },
     contracts::trading::positions::StrategyPositionListPayload,
     error::{AppError, Result},
@@ -126,10 +126,7 @@ pub async fn handle_get_active_strategy(
 pub async fn handle_get_default_strategy_config(
     State(app): State<AppState>,
 ) -> Result<Json<ApiResponse<StrategyDefaultConfigPayload>>> {
-    let payload = app
-        .services
-        .strategy_service
-        .default_strategy_config()?;
+    let payload = app.services.strategy_service.default_strategy_config()?;
     Ok(Json(ApiResponse::success(Some(payload), None)))
 }
 
@@ -140,10 +137,10 @@ pub async fn handle_preview_prompt(
     if !req.config.is_object() {
         return Err(AppError::BadRequest("Invalid strategy config".into()));
     }
-    let payload = app.services.strategy_service.preview_prompt(
-        req.config,
-        req.account_equity,
-    )?;
+    let payload = app
+        .services
+        .strategy_service
+        .preview_prompt(req.config, req.account_equity)?;
     Ok(Json(ApiResponse::success(Some(payload), None)))
 }
 
@@ -157,11 +154,7 @@ pub async fn handle_strategy_test_run(
     let payload = app
         .services
         .strategy_service
-        .test_run(
-            req.config,
-            req.ai_model_id,
-            req.run_real_ai,
-        )
+        .test_run(req.config, req.ai_model_id, req.run_real_ai)
         .await?;
     Ok(Json(ApiResponse::success(Some(payload), None)))
 }

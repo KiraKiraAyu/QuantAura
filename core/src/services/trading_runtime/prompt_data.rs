@@ -267,7 +267,13 @@ impl StrategyPromptData {
         let margin_mode = rc
             .and_then(|r| r.get("margin_mode"))
             .and_then(|v| v.as_str())
-            .map(|m| if m.eq_ignore_ascii_case("cross") { "Cross" } else { "Isolated" })
+            .map(|m| {
+                if m.eq_ignore_ascii_case("cross") {
+                    "Cross"
+                } else {
+                    "Isolated"
+                }
+            })
             .unwrap_or_else(|| if is_cross_margin { "Cross" } else { "Isolated" });
 
         // --- TP/SL rules ---
@@ -525,7 +531,10 @@ mod tests {
         assert!(matches!(data.tp_sl.take_profit, ExitRule::Fixed { .. }));
         assert!(matches!(data.tp_sl.stop_loss, ExitRule::Custom { .. }));
         assert_eq!(data.prompt_sections.role_definition, "You are aggressive");
-        assert_eq!(data.prompt_sections.decision_process, "Check momentum first");
+        assert_eq!(
+            data.prompt_sections.decision_process,
+            "Check momentum first"
+        );
     }
 
     #[test]

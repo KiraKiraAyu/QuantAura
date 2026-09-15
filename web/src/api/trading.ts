@@ -13,7 +13,6 @@ import type {
   PositionQuery,
   RuntimeAlertAckPayload,
   RuntimeAlertAckRequest,
-  RuntimeAlertControlTargetRequest,
   RuntimeAlertControlsPayload,
   RuntimeAlertControlsQuery,
   RuntimeAlertDeliveriesPayload,
@@ -81,9 +80,6 @@ const Api = {
   RuntimeAlertHistory: "/api/trading/runtime-alert-history",
   RuntimeAlertDeliveries: "/api/trading/runtime-alert-deliveries",
   RuntimeAlertControls: "/api/trading/runtime-alert-controls",
-  RuntimeAlertMute: "/api/trading/runtime-alert-controls/mute",
-  RuntimeAlertUnmute: "/api/trading/runtime-alert-controls/unmute",
-  RuntimeAlertAck: "/api/trading/runtime-alert-controls/ack",
   RuntimeEvents: "/api/trading/runtime-events",
   RuntimeEventTypes: "/api/trading/runtime-event-types",
 } as const
@@ -242,18 +238,30 @@ export function getRuntimeAlertControlsApi(params?: RuntimeAlertControlsQuery) {
   })
 }
 
-export function muteRuntimeAlertControlsApi(data: RuntimeAlertMuteRequest) {
-  return request.put<RuntimeAlertMutePayload>(Api.RuntimeAlertMute, data)
-}
-
-export function unmuteRuntimeAlertControlsApi(
-  data: RuntimeAlertControlTargetRequest,
+export function muteRuntimeAlertControlsApi(
+  traderId: string,
+  data: RuntimeAlertMuteRequest,
 ) {
-  return request.put<RuntimeAlertMutePayload>(Api.RuntimeAlertUnmute, data)
+  return request.put<RuntimeAlertMutePayload>(
+    `${Api.RuntimeAlertControls}/${encodeURIComponent(traderId)}/mute`,
+    data,
+  )
 }
 
-export function ackRuntimeAlertControlsApi(data: RuntimeAlertAckRequest) {
-  return request.put<RuntimeAlertAckPayload>(Api.RuntimeAlertAck, data)
+export function unmuteRuntimeAlertControlsApi(traderId: string) {
+  return request.put<RuntimeAlertMutePayload>(
+    `${Api.RuntimeAlertControls}/${encodeURIComponent(traderId)}/unmute`,
+  )
+}
+
+export function ackRuntimeAlertControlsApi(
+  traderId: string,
+  data: RuntimeAlertAckRequest,
+) {
+  return request.put<RuntimeAlertAckPayload>(
+    `${Api.RuntimeAlertControls}/${encodeURIComponent(traderId)}/ack`,
+    data,
+  )
 }
 
 export function getRuntimeEventsApi(params?: RuntimeEventsQuery) {

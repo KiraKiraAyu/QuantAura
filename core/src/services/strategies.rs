@@ -14,7 +14,9 @@ use crate::{
     },
     services::data_template::{data_template_value, validate_strategy_data_template},
     services::llm::{LlmMessage, LlmService},
-    services::trading_runtime::prompt_assemble::{build_system_prompt_from_config, build_test_run_prompt},
+    services::trading_runtime::prompt_assemble::{
+        build_system_prompt_from_config, build_test_run_prompt,
+    },
 };
 
 #[derive(Debug, Clone)]
@@ -241,9 +243,7 @@ impl StrategyService {
             false,
         );
 
-        let payload = PreviewPromptPayload {
-            system_prompt,
-        };
+        let payload = PreviewPromptPayload { system_prompt };
 
         Ok(payload)
     }
@@ -297,10 +297,7 @@ impl StrategyService {
         }
 
         let symbols_str = symbols.join(", ");
-        let user_prompt = build_test_run_prompt(
-            &ai_model_id,
-            &symbols_str,
-        );
+        let user_prompt = build_test_run_prompt(&ai_model_id, &symbols_str);
 
         if run_real_ai {
             if resolved_model.api_key.trim().is_empty() {

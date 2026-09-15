@@ -73,7 +73,7 @@ export function useDebatePage() {
   }
 
   async function startDebate(id: string) {
-    await startDebateApi(id, {})
+    await startDebateApi(id)
     await loadDebates()
     if (activeDebate.value?.id === id) {
       activeDebate.value =

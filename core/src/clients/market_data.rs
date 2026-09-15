@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::{
-    clients::outbound_http::{http_client, send_text, OutboundRequestLog},
+    clients::outbound_http::{OutboundRequestLog, http_client, send_text},
     error::AppError,
 };
 

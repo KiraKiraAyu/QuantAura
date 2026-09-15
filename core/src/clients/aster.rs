@@ -1031,6 +1031,18 @@ mod tests {
 
     use super::*;
 
+    /// Request target as seen by the server, normalized to origin-form.
+    ///
+    /// A forward proxy (e.g. `HTTP_PROXY` in the environment) makes the client
+    /// emit the absolute-form target (`http://host/path?query`), so assertions
+    /// must key off the path and query rather than the raw `Uri` rendering.
+    fn request_target(uri: &Uri) -> String {
+        match uri.query() {
+            Some(query) => format!("{}?{}", uri.path(), query),
+            None => uri.path().to_string(),
+        }
+    }
+
     async fn capture_settings_request(
         State(requests): State<Arc<Mutex<Vec<String>>>>,
         uri: Uri,
@@ -1038,7 +1050,7 @@ mod tests {
         requests
             .lock()
             .expect("request lock poisoned")
-            .push(uri.to_string());
+            .push(request_target(&uri));
         "{}"
     }
 
@@ -1050,7 +1062,7 @@ mod tests {
         requests
             .lock()
             .expect("request lock poisoned")
-            .push(format!("{} {}", method, uri));
+            .push(format!("{} {}", method, request_target(&uri)));
         if uri.path().ends_with("/positionSide/dual") {
             axum::Json(serde_json::json!({ "dualSidePosition": false }))
         } else {

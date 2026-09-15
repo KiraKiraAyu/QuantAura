@@ -76,8 +76,9 @@ pub async fn positions_history(
     State(app): State<state::AppState>,
     Query(q): Query<PaginationQuery>,
 ) -> Result<Json<ApiResponse<PositionListPayload>>> {
+    let (trader_id, limit, offset) = q.sanitized();
     let payload = trading_service(&app)
-        .positions_history(q.trader_id, q.limit, q.offset)
+        .positions_history(trader_id, limit, offset)
         .await?;
     Ok(Json(ApiResponse::success(Some(payload), None)))
 }

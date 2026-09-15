@@ -185,7 +185,10 @@ pub fn supported_provider_types() -> &'static [SupportedProviderType] {
 }
 
 pub fn normalize_provider_type(provider: &str) -> &'static str {
-    let normalized = provider.trim().to_ascii_lowercase().replace([' ', '-'], "_");
+    let normalized = provider
+        .trim()
+        .to_ascii_lowercase()
+        .replace([' ', '-'], "_");
     match normalized.as_str() {
         "chat_completions" => "chat_completions",
         "responses" => "responses",
@@ -220,11 +223,7 @@ mod tests {
 
     #[test]
     fn normalizes_api_category_aliases() {
-        for provider in [
-            "chat_completions",
-            "chat-completions",
-            "Chat Completions",
-        ] {
+        for provider in ["chat_completions", "chat-completions", "Chat Completions"] {
             assert_eq!(normalize_provider_type(provider), "chat_completions");
         }
 

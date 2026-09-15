@@ -49,6 +49,7 @@ export function useAIModelsSettings() {
 
   function providerProbePayload(provider: LlmProvider) {
     return {
+      providerId: provider.id ?? undefined,
       providerType: provider.providerType,
       apiKey: provider.apiKey,
       baseUrl: provider.baseUrl,

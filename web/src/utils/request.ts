@@ -12,8 +12,17 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from "axios"
 
+/**
+ * Client timeouts sit deliberately above the matching server-side timeouts
+ * (standard 15s / long-running 180s, see `ServerConfig` and `routes::build_app`)
+ * so a slow operation surfaces the server's own error instead of the client
+ * aborting first and masking it.
+ */
+export const DEFAULT_REQUEST_TIMEOUT_MS = 20000
+export const LONG_RUNNING_REQUEST_TIMEOUT_MS = 200000
+
 const service: AxiosInstance = axios.create({
-  timeout: 10000,
+  timeout: DEFAULT_REQUEST_TIMEOUT_MS,
   headers: {
     "Content-Type": "application/json",
   },
@@ -57,7 +66,9 @@ service.interceptors.response.use(
     const message =
       error.response?.data?.error ||
       error.response?.data?.message ||
-      error.message ||
+      (error.code === "ECONNABORTED"
+        ? "Request timed out. The server operation may still be processing."
+        : error.message) ||
       "Network Exception"
 
     toast.error(message)

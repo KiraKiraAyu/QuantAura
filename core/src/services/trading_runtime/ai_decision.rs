@@ -664,7 +664,8 @@ mod tests {
 
     #[test]
     fn parses_valid_json_decision() {
-        let text = r#"{"action": "LONG", "confidence": 0.85, "reason": "Strong breakout on high volume"}"#;
+        let text =
+            r#"{"action": "LONG", "confidence": 0.85, "reason": "Strong breakout on high volume"}"#;
         let d = parse_ai_response(text);
         assert_eq!(d.action, "LONG");
         assert!((d.confidence - 0.85).abs() < f64::EPSILON);
@@ -726,7 +727,13 @@ mod tests {
         assert_eq!(fallback.action, "NO ACTION");
         assert_eq!(fallback.confidence, 0.0);
         assert_eq!(fallback.reason, "");
-        assert!(fallback.system_note.as_ref().unwrap().contains("simulated failure"));
+        assert!(
+            fallback
+                .system_note
+                .as_ref()
+                .unwrap()
+                .contains("simulated failure")
+        );
         assert_eq!(fallback.action_taken, "hold-fallback");
         assert_eq!(fallback.timeframe, "5m");
     }

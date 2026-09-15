@@ -40,7 +40,9 @@ pub struct UpsertProviderConfig {
     pub name: String,
     pub provider_type: String,
     pub enabled: bool,
-    pub api_key: String,
+    /// `None` keeps the stored credential, which is how the API expresses
+    /// "the client did not submit a new secret".
+    pub api_key: Option<String>,
     pub base_url: String,
     pub models: Vec<UpsertModelConfig>,
 }
@@ -307,9 +309,12 @@ impl ModelRepo {
             let provider_id = reserve_unique_id(base_provider_id, &mut used_provider_ids);
             keep_provider_ids.insert(provider_id.clone());
 
-            let api_key = match existing_provider_api_keys.get(&provider_id) {
-                Some(existing_key) if provider.api_key.trim().is_empty() => existing_key.clone(),
-                _ => provider.api_key.trim().to_string(),
+            let api_key = match provider.api_key {
+                Some(api_key) => api_key.trim().to_string(),
+                None => existing_provider_api_keys
+                    .get(&provider_id)
+                    .cloned()
+                    .unwrap_or_default(),
             };
 
             llm_providers::Entity::insert(llm_providers::ActiveModel {
@@ -382,6 +387,25 @@ impl ModelRepo {
         tx.commit().await?;
 
         Ok(())
+    }
+
+    /// Read the stored credential for a single provider.
+    ///
+    /// Used to resolve requests where the client echoed back a masked secret
+    /// instead of re-entering the API key.
+    pub async fn api_key_for(
+        &self,
+        provider_id: &str,
+    ) -> Result<Option<String>, crate::database::DbErr> {
+        let provider_id = provider_id.trim();
+        if provider_id.is_empty() {
+            return Ok(None);
+        }
+
+        llm_providers::Entity::find_by_id(provider_id.to_string())
+            .one(&self.db)
+            .await
+            .map(|row| row.map(|model| model.api_key))
     }
 
     pub async fn resolve_for_user(
@@ -698,7 +722,7 @@ mod tests {
             name: "Custom Gateway".to_string(),
             provider_type: "weird-protocol".to_string(),
             enabled: true,
-            api_key: "secret".to_string(),
+            api_key: Some("secret".to_string()),
             base_url: "https://gateway.example.com/v1".to_string(),
             models: vec![UpsertModelConfig {
                 id: Some("custom-gateway-model".to_string()),
@@ -750,7 +774,7 @@ mod tests {
                 name: provider.name.clone(),
                 provider_type: provider.provider_type.clone(),
                 enabled: provider.enabled != 0,
-                api_key: provider.api_key.clone(),
+                api_key: Some(provider.api_key.clone()),
                 base_url: provider.base_url.clone(),
                 models,
             });
@@ -771,5 +795,50 @@ mod tests {
         assert_eq!(deepseek_after.api_key, "updated-secret");
         assert_eq!(deepseek_after.enabled, 0);
         assert_eq!(after.len(), before.len(), "all providers preserved");
+    }
+
+    #[tokio::test]
+    async fn replace_for_user_keeps_stored_api_key_when_secret_is_omitted() {
+        let db = init_database("sqlite::memory:")
+            .await
+            .expect("connect sqlite memory");
+        let repo = ModelRepo::new(db);
+
+        repo.replace_for_user(vec![UpsertProviderConfig {
+            id: Some("deepseek".to_string()),
+            name: "DeepSeek".to_string(),
+            provider_type: "chat_completions".to_string(),
+            enabled: true,
+            api_key: Some("stored-secret".to_string()),
+            base_url: "https://api.deepseek.com/v1".to_string(),
+            models: vec![],
+        }])
+        .await
+        .expect("store provider");
+
+        repo.replace_for_user(vec![UpsertProviderConfig {
+            id: Some("deepseek".to_string()),
+            name: "DeepSeek Renamed".to_string(),
+            provider_type: "chat_completions".to_string(),
+            enabled: true,
+            api_key: None,
+            base_url: "https://api.deepseek.com/v1".to_string(),
+            models: vec![],
+        }])
+        .await
+        .expect("update provider without a new secret");
+
+        let providers = repo.list_for_user().await.expect("list providers");
+        let deepseek = providers
+            .iter()
+            .find(|provider| provider.id == "deepseek")
+            .expect("deepseek should exist");
+
+        assert_eq!(deepseek.name, "DeepSeek Renamed");
+        assert_eq!(deepseek.api_key, "stored-secret");
+        assert_eq!(
+            repo.api_key_for("deepseek").await.expect("read stored key"),
+            Some("stored-secret".to_string())
+        );
     }
 }

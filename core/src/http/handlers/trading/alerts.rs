@@ -1,17 +1,17 @@
 use axum::{
     Json,
-    extract::{Query, State},
+    extract::{Path, Query, State},
 };
 
 use crate::{
     contracts::trading::alerts::{
-        RuntimeAlertAckPayload, RuntimeAlertAckRequest, RuntimeAlertControlTargetRequest,
-        RuntimeAlertControlsPayload, RuntimeAlertControlsQuery, RuntimeAlertDeliveriesPayload,
-        RuntimeAlertDeliveriesQuery, RuntimeAlertHistoryPayload, RuntimeAlertHistoryQuery,
-        RuntimeAlertMutePayload, RuntimeAlertMuteRequest, RuntimeAlertsPayload, RuntimeAlertsQuery,
+        RuntimeAlertAckPayload, RuntimeAlertAckRequest, RuntimeAlertControlsPayload,
+        RuntimeAlertControlsQuery, RuntimeAlertDeliveriesPayload, RuntimeAlertDeliveriesQuery,
+        RuntimeAlertHistoryPayload, RuntimeAlertHistoryQuery, RuntimeAlertMutePayload,
+        RuntimeAlertMuteRequest, RuntimeAlertsPayload, RuntimeAlertsQuery,
     },
-    error::Result,
-    http::response::ApiResponse,
+    error::{AppError, Result},
+    http::response::{ApiResponse, AppJson},
     state,
 };
 
@@ -42,8 +42,8 @@ pub async fn runtime_alert_history(
         .runtime_alert_history(
             q.trader_id,
             q.window_hours,
-            q.limit,
-            q.offset,
+            q.limit.map(|l| l.clamp(1, 500)),
+            q.offset.map(|o| o.max(0)),
             q.breached_only,
             q.severity,
         )
@@ -59,8 +59,8 @@ pub async fn runtime_alert_deliveries(
         .runtime_alert_deliveries(
             q.trader_id,
             q.window_hours,
-            q.limit,
-            q.offset,
+            q.limit.map(|l| l.clamp(1, 500)),
+            q.offset.map(|o| o.max(0)),
             q.success,
             q.destination,
         )
@@ -80,11 +80,16 @@ pub async fn runtime_alert_controls(
 
 pub async fn mute_runtime_alerts(
     State(app): State<state::AppState>,
-    Json(request): Json<RuntimeAlertMuteRequest>,
+    Path(trader_id): Path<String>,
+    AppJson(request): AppJson<RuntimeAlertMuteRequest>,
 ) -> Result<Json<ApiResponse<RuntimeAlertMutePayload>>> {
+    let trader_id = trader_id.trim();
+    if trader_id.is_empty() {
+        return Err(AppError::BadRequest("trader_id must not be empty".into()));
+    }
     let payload = trading_service(&app)
         .mute_runtime_alerts(
-            request.trader_id,
+            Some(trader_id.to_string()),
             request.mute_minutes,
             request.mute_until,
             request.reason,
@@ -95,20 +100,29 @@ pub async fn mute_runtime_alerts(
 
 pub async fn unmute_runtime_alerts(
     State(app): State<state::AppState>,
-    Json(request): Json<RuntimeAlertControlTargetRequest>,
+    Path(trader_id): Path<String>,
 ) -> Result<Json<ApiResponse<RuntimeAlertMutePayload>>> {
+    let trader_id = trader_id.trim();
+    if trader_id.is_empty() {
+        return Err(AppError::BadRequest("trader_id must not be empty".into()));
+    }
     let payload = trading_service(&app)
-        .unmute_runtime_alerts(request.trader_id)
+        .unmute_runtime_alerts(Some(trader_id.to_string()))
         .await?;
     Ok(Json(ApiResponse::success(Some(payload), None)))
 }
 
 pub async fn ack_runtime_alerts(
     State(app): State<state::AppState>,
-    Json(request): Json<RuntimeAlertAckRequest>,
+    Path(trader_id): Path<String>,
+    AppJson(request): AppJson<RuntimeAlertAckRequest>,
 ) -> Result<Json<ApiResponse<RuntimeAlertAckPayload>>> {
+    let trader_id = trader_id.trim();
+    if trader_id.is_empty() {
+        return Err(AppError::BadRequest("trader_id must not be empty".into()));
+    }
     let payload = trading_service(&app)
-        .ack_runtime_alerts(request.trader_id, request.note)
+        .ack_runtime_alerts(Some(trader_id.to_string()), request.note)
         .await?;
     Ok(Json(ApiResponse::success(Some(payload), None)))
 }

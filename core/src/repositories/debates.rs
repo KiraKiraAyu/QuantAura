@@ -46,20 +46,26 @@ impl DebateRepo {
         Self { db }
     }
 
-    pub async fn get(&self, debate_id: &str) -> Result<Option<Value>, DbErr> {
+    pub async fn get(
+        &self,
+        debate_id: &str,
+    ) -> Result<Option<crate::contracts::debates::DebatePayload>, DbErr> {
         debates::Entity::find_by_id(debate_id.trim().to_string())
             .one(&self.db)
             .await
-            .map(|row| row.map(debate_to_json))
+            .map(|row| row.map(debate_to_payload))
     }
 
-    pub async fn list(&self, limit: i64) -> Result<Vec<Value>, DbErr> {
+    pub async fn list(
+        &self,
+        limit: i64,
+    ) -> Result<Vec<crate::contracts::debates::DebateSummaryPayload>, DbErr> {
         debates::Entity::find()
             .order_by_desc(debates::Column::CreatedAt)
             .limit(limit.max(0) as u64)
             .all(&self.db)
             .await
-            .map(|rows| rows.into_iter().map(debate_summary_to_json).collect())
+            .map(|rows| rows.into_iter().map(debate_summary_to_payload).collect())
     }
 
     pub async fn create(&self, input: CreateDebateRecord) -> Result<(), DbErr> {
@@ -157,7 +163,10 @@ impl DebateRepo {
             .map(|_| ())
     }
 
-    pub async fn list_messages(&self, debate_id: &str) -> Result<Vec<Value>, DbErr> {
+    pub async fn list_messages(
+        &self,
+        debate_id: &str,
+    ) -> Result<Vec<crate::contracts::debates::DebateMessageItem>, DbErr> {
         if !self.debate_exists(debate_id).await? {
             return Ok(vec![]);
         }
@@ -168,7 +177,7 @@ impl DebateRepo {
             .order_by_asc(debate_messages::Column::CreatedAt)
             .all(&self.db)
             .await
-            .map(|rows| rows.into_iter().map(debate_message_to_json).collect())
+            .map(|rows| rows.into_iter().map(debate_message_to_item).collect())
     }
 
     pub async fn votes(&self, debate_id: &str) -> Result<Value, DbErr> {
@@ -245,48 +254,52 @@ impl DebateRepo {
     }
 }
 
-fn parse_participants(raw: &str) -> Value {
-    serde_json::from_str(raw).unwrap_or_else(|_| json!([]))
+fn parse_participants(raw: &str) -> Vec<String> {
+    serde_json::from_str(raw).unwrap_or_default()
 }
 
-fn debate_to_json(row: debates::Model) -> Value {
-    json!({
-        "id": row.id,
-        "name": row.name,
-        "symbol": row.symbol,
-        "status": row.status,
-        "max_rounds": row.max_rounds,
-        "current_round": row.current_round,
-        "participants": parse_participants(&row.participants_json),
-        "final_decision": row.final_decision,
-        "final_reasoning": row.final_reasoning,
-        "error_message": row.error_message,
-        "created_at": dt_to_ts(row.created_at),
-        "updated_at": dt_to_ts(row.updated_at),
-    })
+fn debate_to_payload(row: debates::Model) -> crate::contracts::debates::DebatePayload {
+    crate::contracts::debates::DebatePayload {
+        id: row.id,
+        name: row.name,
+        symbol: row.symbol,
+        status: row.status,
+        max_rounds: row.max_rounds,
+        current_round: row.current_round,
+        participants: parse_participants(&row.participants_json),
+        final_decision: row.final_decision,
+        final_reasoning: row.final_reasoning,
+        error_message: row.error_message,
+        created_at: dt_to_ts(row.created_at),
+        updated_at: dt_to_ts(row.updated_at),
+    }
 }
 
-fn debate_summary_to_json(row: debates::Model) -> Value {
-    json!({
-        "id": row.id,
-        "name": row.name,
-        "symbol": row.symbol,
-        "status": row.status,
-        "max_rounds": row.max_rounds,
-        "current_round": row.current_round,
-        "final_decision": row.final_decision,
-        "created_at": dt_to_ts(row.created_at),
-    })
+fn debate_summary_to_payload(
+    row: debates::Model,
+) -> crate::contracts::debates::DebateSummaryPayload {
+    crate::contracts::debates::DebateSummaryPayload {
+        id: row.id,
+        name: row.name,
+        symbol: row.symbol,
+        status: row.status,
+        max_rounds: row.max_rounds,
+        current_round: row.current_round,
+        final_decision: row.final_decision,
+        created_at: dt_to_ts(row.created_at),
+    }
 }
 
-fn debate_message_to_json(row: debate_messages::Model) -> Value {
-    json!({
-        "id": row.id,
-        "round": row.round,
-        "personality": row.personality,
-        "role": row.role,
-        "content": row.content,
-        "vote": row.vote,
-        "created_at": dt_to_ts(row.created_at),
-    })
+fn debate_message_to_item(
+    row: debate_messages::Model,
+) -> crate::contracts::debates::DebateMessageItem {
+    crate::contracts::debates::DebateMessageItem {
+        id: row.id,
+        round: row.round,
+        personality: row.personality,
+        role: row.role,
+        content: row.content,
+        vote: row.vote,
+        created_at: dt_to_ts(row.created_at),
+    }
 }

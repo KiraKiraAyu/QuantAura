@@ -194,6 +194,14 @@ export function useDashboardPage() {
       if (events.value.length > 50) events.value.pop()
     },
   )
+  watch(
+    () => realtime.resyncCount,
+    (count) => {
+      if (count > 0) {
+        void loadAll()
+      }
+    },
+  )
 
   onMounted(() => {
     void loadAll()

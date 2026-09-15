@@ -9,18 +9,54 @@ pub struct CreateDebateRequest {
     pub participants: Option<Vec<String>>,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct StartDebateRequest {}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DebateSummaryPayload {
+    pub id: String,
+    pub name: String,
+    pub symbol: String,
+    pub status: String,
+    pub max_rounds: i32,
+    pub current_round: i32,
+    pub final_decision: String,
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DebatePayload {
+    pub id: String,
+    pub name: String,
+    pub symbol: String,
+    pub status: String,
+    pub max_rounds: i32,
+    pub current_round: i32,
+    pub participants: Vec<String>,
+    pub final_decision: String,
+    pub final_reasoning: String,
+    pub error_message: String,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DebateMessageItem {
+    pub id: String,
+    pub round: i32,
+    pub personality: String,
+    pub role: String,
+    pub content: String,
+    pub vote: String,
+    pub created_at: i64,
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct DebateListPayload {
-    pub debates: Vec<Value>,
+    pub debates: Vec<DebateSummaryPayload>,
     pub count: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct DebateDetailPayload {
-    pub debate: Value,
+    pub debate: DebatePayload,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -56,7 +92,7 @@ pub struct DebateExecutionPayload {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct DebateMessagesPayload {
-    pub messages: Vec<Value>,
+    pub messages: Vec<DebateMessageItem>,
     pub count: usize,
 }
 

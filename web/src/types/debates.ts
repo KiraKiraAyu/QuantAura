@@ -5,10 +5,6 @@ export interface CreateDebateRequest {
   participants?: string[] | null
 }
 
-export interface StartDebateRequest {
-  model_ids?: string[] | null
-}
-
 export interface DebateSummaryPayload {
   id: string
   name: string

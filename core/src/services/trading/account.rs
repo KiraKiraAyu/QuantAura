@@ -132,9 +132,7 @@ pub async fn close_position(
     };
     let position_count = open_positions.len();
 
-    if !local_only
-        && let Some(adapter) = enabled_live_adapter(app, &trader).await?
-    {
+    if !local_only && let Some(adapter) = enabled_live_adapter(app, &trader).await? {
         let order_id = submit_live_close_order(
             &runtime.inner.state,
             &trader,
@@ -691,24 +689,27 @@ mod tests {
 
     #[test]
     fn position_payload_preserves_complete_position_record() {
-        let payload = position_payload(TraderPositionRecord {
-            id: "position_1".to_string(),
-            trader_id: "trader_1".to_string(),
-            symbol: "BTCUSDT".to_string(),
-            side: "LONG".to_string(),
-            quantity: 1.25,
-            entry_price: 256.5,
-            mark_price: 260.75,
-            liquidation_price: 128.0,
-            leverage: 5,
-            margin_mode: "cross".to_string(),
-            unrealized_pnl: 12.5,
-            realized_pnl: -2.5,
-            status: "open".to_string(),
-            opened_at: 1_700_000_000,
-            closed_at: Some(1_700_000_600),
-            updated_at: 1_700_000_900,
-        }, None);
+        let payload = position_payload(
+            TraderPositionRecord {
+                id: "position_1".to_string(),
+                trader_id: "trader_1".to_string(),
+                symbol: "BTCUSDT".to_string(),
+                side: "LONG".to_string(),
+                quantity: 1.25,
+                entry_price: 256.5,
+                mark_price: 260.75,
+                liquidation_price: 128.0,
+                leverage: 5,
+                margin_mode: "cross".to_string(),
+                unrealized_pnl: 12.5,
+                realized_pnl: -2.5,
+                status: "open".to_string(),
+                opened_at: 1_700_000_000,
+                closed_at: Some(1_700_000_600),
+                updated_at: 1_700_000_900,
+            },
+            None,
+        );
 
         assert_eq!(payload.id, "position_1");
         assert_eq!(payload.trader_id, "trader_1");

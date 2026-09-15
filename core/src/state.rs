@@ -138,13 +138,46 @@ impl BacktestManager {
     }
 }
 
+#[derive(Debug, Default)]
+pub struct DebateManager {
+    debates: HashMap<String, tokio::sync::oneshot::Sender<()>>,
+}
+
+impl DebateManager {
+    pub fn new() -> Self {
+        Self {
+            debates: HashMap::new(),
+        }
+    }
+
+    pub fn insert(&mut self, debate_id: String, tx: tokio::sync::oneshot::Sender<()>) {
+        self.debates.insert(debate_id, tx);
+    }
+
+    pub fn remove(&mut self, debate_id: &str) -> Option<tokio::sync::oneshot::Sender<()>> {
+        self.debates.remove(debate_id)
+    }
+
+    pub fn contains(&self, debate_id: &str) -> bool {
+        self.debates.contains_key(debate_id)
+    }
+
+    pub fn stop(&mut self, debate_id: &str) -> Result<(), String> {
+        if let Some(tx) = self.debates.remove(debate_id) {
+            let _ = tx.send(());
+            Ok(())
+        } else {
+            Err("Debate not running".into())
+        }
+    }
+}
+
 #[derive(Debug, Clone, FromRef)]
 pub struct AppState {
     pub config: AppConfig,
     pub db: DatabaseConnection,
     pub boot_unix_ts: u64,
     pub runtime_engine_manager: Arc<RwLock<RuntimeEngineManager>>,
-    pub backtest_manager: Arc<Mutex<BacktestManager>>,
     pub realtime_hub: RealtimeHub,
     pub services: Services,
 }
@@ -158,6 +191,7 @@ pub struct Services {
     pub llm_service: Arc<LlmService>,
     pub model_service: Arc<ModelService>,
     pub strategy_service: Arc<StrategyService>,
+    pub system_service: Arc<crate::services::system::SystemService>,
     pub trading_service: Arc<TradingService>,
     pub trading_runtime_service: Arc<TradingRuntimeService>,
 }
@@ -167,14 +201,19 @@ impl Services {
         config: &AppConfig,
         db: &DatabaseConnection,
         runtime_engine_manager: Arc<RwLock<RuntimeEngineManager>>,
+        backtest_manager: Arc<Mutex<BacktestManager>>,
+        debate_manager: Arc<Mutex<DebateManager>>,
         realtime_hub: RealtimeHub,
     ) -> Self {
         let app_settings_repo = Arc::new(AppSettingsRepo::new(db.clone()));
         let auth_service = Arc::new(
-            AuthService::new(config.auth.clone(), app_settings_repo)
+            AuthService::new(config.auth.clone(), app_settings_repo.clone())
                 .await
                 .expect("Failed to initialize auth service"),
         );
+        let system_service = Arc::new(crate::services::system::SystemService::new(
+            app_settings_repo,
+        ));
 
         let model_repo = Arc::new(ModelRepo::new(db.clone()));
         let llm_service = Arc::new(LlmService::new(model_repo.clone()));
@@ -192,12 +231,11 @@ impl Services {
             llm_service.clone(),
             realtime_hub.clone(),
         ));
-        let backtest_manager = Arc::new(Mutex::new(BacktestManager::new()));
         let backtest_service = Arc::new(BacktestService::new(
             backtest_repo,
             realtime_hub.clone(),
             trading_runtime_service.state(),
-            backtest_manager.clone(),
+            backtest_manager,
         ));
 
         let debate_repo = Arc::new(DebateRepo::new(db.clone()));
@@ -205,6 +243,7 @@ impl Services {
             debate_repo,
             realtime_hub.clone(),
             llm_service.clone(),
+            debate_manager,
         ));
         let model_service = Arc::new(ModelService::new(model_repo.clone(), llm_service.clone()));
         let strategy_repo = Arc::new(StrategyRepo::new(db.clone()));
@@ -227,6 +266,7 @@ impl Services {
             llm_service,
             model_service,
             strategy_service,
+            system_service,
             trading_service,
             trading_runtime_service,
         }
@@ -243,11 +283,14 @@ impl AppState {
 
         let runtime_engine_manager = Arc::new(RwLock::new(RuntimeEngineManager::default()));
         let backtest_manager = Arc::new(Mutex::new(BacktestManager::new()));
+        let debate_manager = Arc::new(Mutex::new(DebateManager::new()));
         let realtime_hub = RealtimeHub::new();
         let services = Services::new(
             &config,
             &db,
             runtime_engine_manager.clone(),
+            backtest_manager,
+            debate_manager,
             realtime_hub.clone(),
         )
         .await;
@@ -257,7 +300,6 @@ impl AppState {
             db,
             boot_unix_ts: now_unix_ts(),
             runtime_engine_manager,
-            backtest_manager,
             realtime_hub,
             services,
         }

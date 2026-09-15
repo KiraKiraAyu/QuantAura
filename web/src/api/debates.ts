@@ -8,9 +8,8 @@ import type {
   DebateMessagesPayload,
   DebatePersonalitiesPayload,
   DebateVotesPayload,
-  StartDebateRequest,
 } from "@/types/debates"
-import request from "@/utils/request"
+import request, { LONG_RUNNING_REQUEST_TIMEOUT_MS } from "@/utils/request"
 
 const Api = {
   Root: "/api/debates",
@@ -43,8 +42,12 @@ export function deleteDebateApi(id: string) {
   return request.delete<DebateMessagePayload>(Api.Detail.replace("{id}", id))
 }
 
-export function startDebateApi(id: string, data: StartDebateRequest) {
-  return request.post<DebateActionPayload>(Api.Start.replace("{id}", id), data)
+export function startDebateApi(id: string) {
+  return request.post<DebateActionPayload>(
+    Api.Start.replace("{id}", id),
+    undefined,
+    { timeout: LONG_RUNNING_REQUEST_TIMEOUT_MS },
+  )
 }
 
 export function cancelDebateApi(id: string) {
@@ -52,7 +55,11 @@ export function cancelDebateApi(id: string) {
 }
 
 export function executeDebateApi(id: string) {
-  return request.post<DebateExecutionPayload>(Api.Execute.replace("{id}", id))
+  return request.post<DebateExecutionPayload>(
+    Api.Execute.replace("{id}", id),
+    undefined,
+    { timeout: LONG_RUNNING_REQUEST_TIMEOUT_MS },
+  )
 }
 
 export function getDebateMessagesApi(id: string) {

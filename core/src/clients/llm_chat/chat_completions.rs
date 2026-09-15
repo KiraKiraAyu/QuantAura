@@ -211,12 +211,8 @@ impl ChatCompletionsClient {
                 .post(&url)
                 .bearer_auth(&self.config.api_key)
                 .json(&payload),
-            OutboundRequestLog::new(
-                "llm.chat_completions.check_provider",
-                Method::POST,
-                &url,
-            )
-            .body(body),
+            OutboundRequestLog::new("llm.chat_completions.check_provider", Method::POST, &url)
+                .body(body),
         )
         .await?;
 

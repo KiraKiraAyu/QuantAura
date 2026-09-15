@@ -1,5 +1,6 @@
 use axum::{
     Json,
+    extract::{FromRequest, Request, rejection::JsonRejection},
     http::StatusCode,
     response::{IntoResponse, Response},
 };
@@ -26,6 +27,12 @@ impl<T> ApiResponse<T> {
     }
 }
 
+impl<T: Serialize> IntoResponse for ApiResponse<T> {
+    fn into_response(self) -> Response {
+        Json(self).into_response()
+    }
+}
+
 impl ApiResponse<()> {
     pub fn failure<S: Into<String>>(error: S) -> Self {
         ApiResponse {
@@ -33,6 +40,40 @@ impl ApiResponse<()> {
             message: None,
             data: None,
             error: Some(error.into()),
+        }
+    }
+}
+
+/// Custom JSON extractor that catches Axum's JsonRejection
+/// and formats the error as a unified JSON `ApiResponse::failure`.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct AppJson<T>(pub T);
+
+impl<T, S> FromRequest<S> for AppJson<T>
+where
+    T: serde::de::DeserializeOwned,
+    S: Send + Sync,
+{
+    type Rejection = Response;
+
+    async fn from_request(req: Request, state: &S) -> Result<Self, Self::Rejection> {
+        match Json::<T>::from_request(req, state).await {
+            Ok(value) => Ok(AppJson(value.0)),
+            Err(rejection) => {
+                let (status, msg) = match &rejection {
+                    JsonRejection::JsonDataError(err) => {
+                        (StatusCode::UNPROCESSABLE_ENTITY, err.to_string())
+                    }
+                    JsonRejection::JsonSyntaxError(err) => {
+                        (StatusCode::BAD_REQUEST, err.to_string())
+                    }
+                    JsonRejection::MissingJsonContentType(err) => {
+                        (StatusCode::UNSUPPORTED_MEDIA_TYPE, err.to_string())
+                    }
+                    _ => (StatusCode::BAD_REQUEST, rejection.to_string()),
+                };
+                Err((status, Json(ApiResponse::<()>::failure(msg))).into_response())
+            }
         }
     }
 }
@@ -107,14 +148,14 @@ impl IntoResponse for AppError {
                 tracing::error!("Exchange request failed: {:?}", err);
                 (
                     StatusCode::BAD_GATEWAY,
-                    format!("Exchange request failed: {err}"),
+                    "Exchange request failed".to_string(),
                 )
             }
             AppError::ExchangeJson(err) => {
                 tracing::error!("Exchange returned invalid JSON: {:?}", err);
                 (
                     StatusCode::BAD_GATEWAY,
-                    format!("Exchange returned invalid JSON: {err}"),
+                    "Exchange returned invalid response".to_string(),
                 )
             }
             AppError::ExchangeApi { message, .. } => {
@@ -128,23 +169,29 @@ impl IntoResponse for AppError {
                 tracing::error!("Failed to build exchange timestamp: {}", message);
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    "Internal Server error".to_string(),
+                    "Internal server error".to_string(),
                 )
             }
             AppError::ExchangeCrypto(message) => {
                 tracing::error!("Failed to sign exchange request: {}", message);
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("Failed to sign exchange request: {message}"),
+                    "Failed to sign exchange request".to_string(),
                 )
             }
             AppError::Internal(message) => {
-                tracing::error!("Internal server error. {}", message);
-                (StatusCode::INTERNAL_SERVER_ERROR, message)
+                tracing::error!("Internal server error: {}", message);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Internal server error".to_string(),
+                )
             }
             AppError::BudgetExhausted(message) => {
                 tracing::warn!("Budget exhausted: {}", message);
-                (StatusCode::OK, format!("Budget exhausted: {message}"))
+                (
+                    StatusCode::TOO_MANY_REQUESTS,
+                    format!("Budget exhausted: {message}"),
+                )
             }
             AppError::Database(err) => {
                 tracing::error!("Database error: {:?}", err);
@@ -168,7 +215,7 @@ impl IntoResponse for AppError {
                 tracing::error!("Serialization error: {:?}", err);
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    "Internal Server error".to_string(),
+                    "Internal server error".to_string(),
                 )
             }
             AppError::Uuid(err) => {
@@ -179,7 +226,7 @@ impl IntoResponse for AppError {
                 tracing::error!("Runtime task failed: {:?}", err);
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    "Internal Server error".to_string(),
+                    "Internal server error".to_string(),
                 )
             }
         };
@@ -198,32 +245,52 @@ mod tests {
     #[test]
     fn maps_all_app_error_status_codes_correctly() {
         assert_eq!(
-            AppError::BadRequest("Invalid".into()).into_response().status(),
+            AppError::BadRequest("Invalid".into())
+                .into_response()
+                .status(),
             StatusCode::BAD_REQUEST
         );
         assert_eq!(
-            AppError::Unauthorized("No auth".into()).into_response().status(),
+            AppError::Unauthorized("No auth".into())
+                .into_response()
+                .status(),
             StatusCode::UNAUTHORIZED
         );
         assert_eq!(
-            AppError::Forbidden("Denied".into()).into_response().status(),
+            AppError::Forbidden("Denied".into())
+                .into_response()
+                .status(),
             StatusCode::FORBIDDEN
         );
         assert_eq!(
-            AppError::NotFound("Missing".into()).into_response().status(),
+            AppError::NotFound("Missing".into())
+                .into_response()
+                .status(),
             StatusCode::NOT_FOUND
         );
         assert_eq!(
-            AppError::Conflict("Duplicate".into()).into_response().status(),
+            AppError::Conflict("Duplicate".into())
+                .into_response()
+                .status(),
             StatusCode::CONFLICT
         );
         assert_eq!(
-            AppError::BadGateway("Upstream failed".into()).into_response().status(),
+            AppError::BadGateway("Upstream failed".into())
+                .into_response()
+                .status(),
             StatusCode::BAD_GATEWAY
         );
         assert_eq!(
-            AppError::Internal("Server crash".into()).into_response().status(),
+            AppError::Internal("Server crash".into())
+                .into_response()
+                .status(),
             StatusCode::INTERNAL_SERVER_ERROR
+        );
+        assert_eq!(
+            AppError::BudgetExhausted("Exhausted".into())
+                .into_response()
+                .status(),
+            StatusCode::TOO_MANY_REQUESTS
         );
     }
 

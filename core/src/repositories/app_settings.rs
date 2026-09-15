@@ -2,8 +2,8 @@ use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set, prelude::Expr,
 };
 
+use crate::database::DbErr;
 use crate::entity::app_settings;
-use crate::error::{AppError, Result as AppResult};
 use crate::time::ts_to_dt;
 
 /// Simple key-value persistence for instance-level settings
@@ -18,18 +18,17 @@ impl AppSettingsRepo {
         Self { db }
     }
 
-    pub async fn get(&self, key: &str) -> AppResult<Option<String>> {
+    pub async fn get(&self, key: &str) -> Result<Option<String>, DbErr> {
         app_settings::Entity::find_by_id(key.trim().to_string())
             .one(&self.db)
             .await
             .map(|row| row.map(|model| model.value))
-            .map_err(AppError::from)
     }
 
-    pub async fn set(&self, key: &str, value: &str) -> AppResult<()> {
+    pub async fn set(&self, key: &str, value: &str) -> Result<(), DbErr> {
         let key = key.trim();
         if key.is_empty() {
-            return Err(AppError::BadRequest("Setting key cannot be empty".into()));
+            return Err(DbErr::Custom("Setting key cannot be empty".into()));
         }
 
         let now = ts_to_dt(now_unix_ts() as i64);
@@ -55,7 +54,7 @@ impl AppSettingsRepo {
         Ok(())
     }
 
-    pub async fn delete(&self, key: &str) -> AppResult<()> {
+    pub async fn delete(&self, key: &str) -> Result<(), DbErr> {
         app_settings::Entity::delete_by_id(key.trim().to_string())
             .exec(&self.db)
             .await?;

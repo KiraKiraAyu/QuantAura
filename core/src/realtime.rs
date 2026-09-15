@@ -85,6 +85,9 @@ pub enum RealtimeEvent {
         final_decision: String,
         final_reasoning: String,
     },
+    ResyncRequired {
+        missed_count: u64,
+    },
     Error {
         code: String,
         message: String,
@@ -142,6 +145,12 @@ pub async fn events_handler(
                 }
                 Err(broadcast::error::RecvError::Lagged(count)) => {
                     warn!("sse: client lagged by {count} events");
+                    let resync = RealtimeEvent::ResyncRequired {
+                        missed_count: count,
+                    };
+                    if let Ok(json) = serde_json::to_string(&resync) {
+                        return Some((Ok(Event::default().data(json)), rx));
+                    }
                 }
                 Err(broadcast::error::RecvError::Closed) => return None,
             }
@@ -162,22 +171,29 @@ fn sse_initial_stream() -> impl Stream<Item = Result<Event, Infallible>> {
 
 #[cfg(test)]
 mod tests {
-    use futures_util::StreamExt;
     use serde_json::json;
 
     use super::*;
 
     #[tokio::test]
     async fn sse_initial_stream_sends_connected_comment_immediately() {
-        let stream = sse_initial_stream();
-        futures_util::pin_mut!(stream);
-        let event = stream
-            .next()
-            .await
-            .expect("initial sse event should be emitted immediately")
-            .expect("initial sse event should serialize");
+        use axum::response::IntoResponse;
+        use axum::response::sse::Sse;
 
-        drop(event);
+        let stream = sse_initial_stream();
+        let response = Sse::new(stream).into_response();
+        let body = axum::body::to_bytes(response.into_body(), 1024)
+            .await
+            .expect("read event body");
+        let text = String::from_utf8_lossy(&body);
+        assert!(
+            text.contains(SSE_CONNECTED_COMMENT),
+            "initial sse stream should emit connected comment, got: {text}"
+        );
+        assert!(
+            text.starts_with(':'),
+            "initial sse stream should emit sse comment starting with ':', got: {text}"
+        );
     }
 
     #[test]

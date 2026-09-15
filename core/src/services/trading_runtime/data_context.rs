@@ -30,7 +30,11 @@ pub async fn load_trader_data_context(
     let exchange_type = if historical_klines.is_some() {
         "simulated".to_string()
     } else {
-        match state.exchange_repo.find_runtime_config(&cfg.exchange_id).await {
+        match state
+            .exchange_repo
+            .find_runtime_config(&cfg.exchange_id)
+            .await
+        {
             Ok(Some(row)) => row.exchange_type,
             _ => "binance".to_string(),
         }
@@ -66,8 +70,7 @@ pub async fn load_trader_data_context(
                 fetch_cache.insert(key, sliced.clone());
                 sliced
             } else {
-                let candles =
-                    fetch_klines(&exchange_type, symbol, timeframe, item.count).await?;
+                let candles = fetch_klines(&exchange_type, symbol, timeframe, item.count).await?;
                 fetch_cache.insert(key, candles.clone());
                 candles
             };
@@ -107,8 +110,7 @@ pub async fn load_trader_data_context(
                 fetch_cache.insert(key, sliced.clone());
                 sliced
             } else {
-                let candles =
-                    fetch_klines(&exchange_type, symbol, timeframe, count).await?;
+                let candles = fetch_klines(&exchange_type, symbol, timeframe, count).await?;
                 fetch_cache.insert(key, candles.clone());
                 candles
             };
@@ -179,11 +181,7 @@ fn format_kline_time(open_time_ms: i64) -> String {
         .unwrap_or_default()
 }
 
-fn render_raw_klines(
-    rendered: &mut String,
-    timeframe: &str,
-    candles: &[MarketKline],
-) {
+fn render_raw_klines(rendered: &mut String, timeframe: &str, candles: &[MarketKline]) {
     let _ = writeln!(
         rendered,
         "### Kline ({}, {} closed candles)\ntime,open,high,low,close,volume",
@@ -493,6 +491,69 @@ mod tests {
 
     #[tokio::test]
     async fn test_historical_data_context_slicing_isolates_temporal_state() {
+        use super::super::test_support::TestRuntimeState;
+        use envconfig::Envconfig;
+
+        let pool = crate::database::init_database("sqlite::memory:")
+            .await
+            .expect("connect sqlite memory");
+        let model_repo = std::sync::Arc::new(crate::repositories::ModelRepo::new(pool.clone()));
+        let llm_service = std::sync::Arc::new(crate::services::llm::LlmService::new(model_repo));
+        let state = TestRuntimeState::new(
+            pool,
+            crate::config::LiveRuntimeConfig::init_from_hashmap(&std::collections::HashMap::new())
+                .unwrap(),
+            std::sync::Arc::new(std::sync::RwLock::new(
+                crate::state::RuntimeEngineManager::default(),
+            )),
+            llm_service,
+            crate::realtime::RealtimeHub::new(),
+        );
+
+        let cfg = TraderRuntimeConfig {
+            trader_id: "test_trader".to_string(),
+            name: "Test Trader".to_string(),
+            ai_model_id: "test-model".to_string(),
+            ai_model_name: "test-model".to_string(),
+            ai_provider_type: "chat_completions".to_string(),
+            ai_api_key: String::new(),
+            ai_base_url: String::new(),
+            exchange_id: "test-exchange".to_string(),
+            scan_interval_minutes: 5,
+            initial_balance: 10000.0,
+            is_cross_margin: true,
+            trading_symbols: "BTCUSDT".to_string(),
+            custom_prompt: String::new(),
+            override_base_prompt: false,
+            system_prompt_template: "default".to_string(),
+            symbols_config: vec![],
+            strategy_config: json!({
+                "data_template": {
+                    "schema_version": 1,
+                    "items": [
+                        {
+                            "id": "kline",
+                            "type": "raw_kline",
+                            "timeframes": ["5m"],
+                            "count": 20
+                        },
+                        {
+                            "id": "rsi_5m",
+                            "type": "indicator",
+                            "timeframes": ["5m"],
+                            "indicator": "rsi",
+                            "params": { "period": 14 },
+                            "output_mode": "latest"
+                        }
+                    ]
+                }
+            }),
+        };
+
+        // 50 5-minute candles:
+        // Candle 1: open_time 0, close_time 300_000 ms (300s)
+        // Candle 20: close_time 6_000_000 ms (6000s), close 20.5
+        // Candle 21: close_time 6_300_000 ms (6300s), close 21.5
         let historical_candles: Vec<MarketKline> = (1..=50)
             .map(|i| MarketKline {
                 open_time: (i - 1) * 300_000,
@@ -506,16 +567,55 @@ mod tests {
             })
             .collect();
 
-        // Cutoff at candle 20 (close_time = 20 * 300_000 = 6_000_000 ms = 6000 s)
-        let as_of_ts_sec = 6000;
-        let cutoff_ms = as_of_ts_sec * 1000;
+        // 1. Cutoff at candle 20 (close_time = 6000s)
+        let ctx = load_trader_data_context(
+            &state.state,
+            &cfg,
+            "BTCUSDT",
+            Some(6000),
+            Some(&historical_candles),
+        )
+        .await
+        .expect("load historical data context");
 
-        let filtered: Vec<MarketKline> = historical_candles
-            .iter()
-            .filter(|c| c.close_time <= cutoff_ms)
-            .cloned()
-            .collect();
-        assert_eq!(filtered.len(), 20);
-        assert_eq!(filtered.last().unwrap().close, 20.5);
+        assert!(ctx.rendered.contains("- Exchange: simulated"));
+        assert!(ctx.rendered.contains("- Symbol: BTCUSDT"));
+        assert!(ctx.rendered.contains("Kline (5m, 20 closed candles)"));
+        // Candle 20 (close = 20.5) must be present, candle 21 (close = 21.5) must NOT be present
+        assert!(ctx.rendered.contains("20.50000000"));
+        assert!(!ctx.rendered.contains("21.50000000"));
+        assert!(ctx.rendered.contains("### Indicators"));
+        assert!(ctx.rendered.contains("RSI(14)"));
+
+        // 2. Cutoff earlier at candle 15 (close_time = 4500s)
+        let ctx_earlier = load_trader_data_context(
+            &state.state,
+            &cfg,
+            "BTCUSDT",
+            Some(4500),
+            Some(&historical_candles),
+        )
+        .await
+        .expect("load earlier historical data context");
+
+        assert!(
+            ctx_earlier
+                .rendered
+                .contains("Kline (5m, 15 closed candles)")
+        );
+        assert!(ctx_earlier.rendered.contains("15.50000000"));
+        assert!(!ctx_earlier.rendered.contains("16.50000000"));
+
+        // 3. Cutoff too early (candle 10 = 3000s) fails with insufficient kline data for RSI(14)
+        let err = load_trader_data_context(
+            &state.state,
+            &cfg,
+            "BTCUSDT",
+            Some(3000),
+            Some(&historical_candles),
+        )
+        .await
+        .expect_err("should fail when candles are insufficient for RSI");
+        assert!(matches!(err, AppError::InvalidConfig(_)));
     }
 }

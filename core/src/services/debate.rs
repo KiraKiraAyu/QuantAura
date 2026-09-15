@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex};
 
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -83,6 +82,7 @@ pub struct DebateService {
     debate_repo: Arc<DebateRepo>,
     realtime_hub: RealtimeHub,
     llm_service: Arc<LlmService>,
+    debate_manager: Arc<Mutex<crate::state::DebateManager>>,
 }
 
 impl DebateService {
@@ -90,11 +90,13 @@ impl DebateService {
         debate_repo: Arc<DebateRepo>,
         realtime_hub: RealtimeHub,
         llm_service: Arc<LlmService>,
+        debate_manager: Arc<Mutex<crate::state::DebateManager>>,
     ) -> Self {
         Self {
             debate_repo,
             realtime_hub,
             llm_service,
+            debate_manager,
         }
     }
 
@@ -151,9 +153,26 @@ impl DebateService {
     }
 
     pub async fn delete(&self, debate_id: &str) -> AppResult<DebateMessagePayload> {
-        delete_debate(&self.debate_repo, debate_id)
+        let is_running = self
+            .debate_manager
+            .lock()
+            .ok()
+            .map(|g| g.contains(debate_id))
+            .unwrap_or(false);
+        if is_running {
+            return Err(AppError::BadRequest(
+                "Debate is currently running; cancel before deleting".into(),
+            ));
+        }
+
+        let rows_affected = self
+            .debate_repo
+            .delete(debate_id)
             .await
-            .map_err(AppError::BadRequest)?;
+            .map_err(|e| AppError::Internal(e.to_string()))?;
+        if rows_affected == 0 {
+            return Err(AppError::NotFound("Debate not found".into()));
+        }
 
         Ok(DebateMessagePayload {
             message: "Debate deleted",
@@ -169,6 +188,7 @@ impl DebateService {
             available,
             self.llm_service.clone(),
             self.realtime_hub.clone(),
+            self.debate_manager.clone(),
         )
         .await
         .map_err(AppError::BadRequest)?;
@@ -180,7 +200,11 @@ impl DebateService {
     }
 
     pub fn cancel(&self, debate_id: &str) -> AppResult<DebateActionPayload> {
-        cancel_debate(debate_id).map_err(AppError::BadRequest)?;
+        self.debate_manager
+            .lock()
+            .map_err(|_| AppError::Internal("Lock poisoned".into()))?
+            .stop(debate_id)
+            .map_err(AppError::BadRequest)?;
 
         Ok(DebateActionPayload {
             id: debate_id.to_string(),
@@ -198,11 +222,12 @@ impl DebateService {
 
         Ok(DebateExecutionPayload {
             id: debate_id.to_string(),
-            final_decision: debate["final_decision"]
-                .as_str()
-                .unwrap_or("HOLD")
-                .to_string(),
-            final_reasoning: debate["final_reasoning"].as_str().unwrap_or("").to_string(),
+            final_decision: if debate.final_decision.is_empty() {
+                "HOLD".to_string()
+            } else {
+                debate.final_decision
+            },
+            final_reasoning: debate.final_reasoning,
             message: "Debate result retrieved",
         })
     }
@@ -279,52 +304,6 @@ async fn create_debate(
     Ok(id)
 }
 
-/// Delete a debate (only if pending or completed/failed).
-async fn delete_debate(debate_repo: &DebateRepo, debate_id: &str) -> Result<(), String> {
-    let mgr = get_debate_manager();
-    let is_running = mgr
-        .lock()
-        .ok()
-        .map(|g| g.contains_key(debate_id))
-        .unwrap_or(false);
-    if is_running {
-        return Err("Debate is currently running; cancel before deleting".into());
-    }
-
-    let rows_affected = debate_repo
-        .delete(debate_id)
-        .await
-        .map_err(|e| e.to_string())?;
-    if rows_affected == 0 {
-        return Err("Debate not found".into());
-    }
-    Ok(())
-}
-
-/// Cancel a running debate by signalling the background task.
-fn cancel_debate(debate_id: &str) -> Result<(), String> {
-    let mgr = get_debate_manager();
-    let mut guard = mgr.lock().unwrap();
-    if let Some(tx) = guard.remove(debate_id) {
-        let _ = tx.send(());
-        Ok(())
-    } else {
-        Err("Debate not running".into())
-    }
-}
-
-/// Global manager: debate_id -> cancel_tx
-type DebateManagerInner = HashMap<String, tokio::sync::oneshot::Sender<()>>;
-type SharedDebateManager = Arc<Mutex<DebateManagerInner>>;
-
-static DEBATE_MANAGER: OnceLock<SharedDebateManager> = OnceLock::new();
-
-fn get_debate_manager() -> SharedDebateManager {
-    DEBATE_MANAGER
-        .get_or_init(|| Arc::new(Mutex::new(HashMap::new())))
-        .clone()
-}
-
 /// Start the debate: spawn background task that runs all rounds sequentially.
 async fn start_debate(
     debate_repo: Arc<DebateRepo>,
@@ -332,6 +311,7 @@ async fn start_debate(
     ai_configs: Vec<ResolvedModelRecord>,
     llm_service: Arc<LlmService>,
     realtime_hub: RealtimeHub,
+    debate_manager: Arc<Mutex<crate::state::DebateManager>>,
 ) -> Result<(), String> {
     // Fetch debate config
     let debate = debate_repo
@@ -339,7 +319,7 @@ async fn start_debate(
         .await
         .map_err(|e| e.to_string())?
         .ok_or("Debate not found")?;
-    let status = debate["status"].as_str().unwrap_or("");
+    let status = &debate.status;
     if status != "pending" && status != "failed" {
         return Err(format!("Debate is {}; cannot start", status));
     }
@@ -351,14 +331,15 @@ async fn start_debate(
 
     let (cancel_tx, cancel_rx) = tokio::sync::oneshot::channel::<()>();
     {
-        let mgr = get_debate_manager();
-        mgr.lock().unwrap().insert(debate_id.clone(), cancel_tx);
+        debate_manager
+            .lock()
+            .unwrap()
+            .insert(debate_id.clone(), cancel_tx);
     }
 
-    let max_rounds = debate["max_rounds"].as_i64().unwrap_or(3) as usize;
-    let symbol = debate["symbol"].as_str().unwrap_or("BTCUSDT").to_string();
-    let participants: Vec<String> =
-        serde_json::from_value(debate["participants"].clone()).unwrap_or_default();
+    let max_rounds = debate.max_rounds.clamp(1, 10) as usize;
+    let symbol = debate.symbol;
+    let participants = debate.participants;
 
     tokio::spawn(run_debate_task(
         debate_repo,
@@ -370,6 +351,7 @@ async fn start_debate(
         symbol,
         cancel_rx,
         realtime_hub,
+        debate_manager,
     ));
 
     Ok(())
@@ -385,6 +367,7 @@ async fn run_debate_task(
     symbol: String,
     mut cancel_rx: tokio::sync::oneshot::Receiver<()>,
     realtime_hub: RealtimeHub,
+    debate_manager: Arc<Mutex<crate::state::DebateManager>>,
 ) {
     // Build LLM clients keyed by personality (or cycle through configs)
     let mut conversation_history: Vec<(String, String)> = Vec::new(); // (personality, content)
@@ -394,7 +377,9 @@ async fn run_debate_task(
             let _ = debate_repo
                 .update_status(&debate_id, &DebateStatus::Cancelled.to_string(), now_ts())
                 .await;
-            remove_from_manager(&debate_id);
+            if let Ok(mut mgr) = debate_manager.lock() {
+                mgr.remove(&debate_id);
+            }
             return;
         }
 
@@ -532,7 +517,9 @@ Format: Your analysis paragraph... then on a new line: VOTE: LONG|SHORT|HOLD"#,
         final_reasoning,
     });
 
-    remove_from_manager(&debate_id);
+    if let Ok(mut mgr) = debate_manager.lock() {
+        mgr.remove(&debate_id);
+    }
 }
 
 fn extract_vote_from_response(response: &str) -> String {
@@ -570,33 +557,40 @@ fn extract_vote_from_response(response: &str) -> String {
     }
 }
 
-fn remove_from_manager(debate_id: &str) {
-    let mgr = get_debate_manager();
-    let mut g = mgr.lock().unwrap_or_else(|e| e.into_inner());
-    g.remove(debate_id);
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn extracts_standard_vote() {
-        assert_eq!(extract_vote_from_response("I think we should buy. VOTE: LONG"), "LONG");
-        assert_eq!(extract_vote_from_response("Market is crashing. VOTE: SHORT"), "SHORT");
-        assert_eq!(extract_vote_from_response("Too risky right now. VOTE: HOLD"), "HOLD");
+        assert_eq!(
+            extract_vote_from_response("I think we should buy. VOTE: LONG"),
+            "LONG"
+        );
+        assert_eq!(
+            extract_vote_from_response("Market is crashing. VOTE: SHORT"),
+            "SHORT"
+        );
+        assert_eq!(
+            extract_vote_from_response("Too risky right now. VOTE: HOLD"),
+            "HOLD"
+        );
     }
 
     #[test]
     fn extracts_markdown_bold_vote() {
-        assert_eq!(extract_vote_from_response("Based on analysis: **VOTE**: **LONG**"), "LONG");
+        assert_eq!(
+            extract_vote_from_response("Based on analysis: **VOTE**: **LONG**"),
+            "LONG"
+        );
         assert_eq!(extract_vote_from_response("### **VOTE: SHORT**"), "SHORT");
         assert_eq!(extract_vote_from_response("My **VOTE** is `HOLD`"), "HOLD");
     }
 
     #[test]
     fn falls_back_to_keyword_counting() {
-        let response = "I strongly suggest going long here. Long signals everywhere, very bullish long.";
+        let response =
+            "I strongly suggest going long here. Long signals everywhere, very bullish long.";
         assert_eq!(extract_vote_from_response(response), "LONG");
     }
 }

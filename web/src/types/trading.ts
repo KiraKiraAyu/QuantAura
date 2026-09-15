@@ -108,19 +108,13 @@ export interface RuntimeAlertControlsQuery {
   trader_id?: string | null
 }
 
-export interface RuntimeAlertControlTargetRequest {
-  trader_id?: string | null
-}
-
 export interface RuntimeAlertMuteRequest {
-  trader_id?: string | null
   mute_minutes?: number | null
   mute_until?: number | null
   reason?: string | null
 }
 
 export interface RuntimeAlertAckRequest {
-  trader_id?: string | null
   note?: string | null
 }
 

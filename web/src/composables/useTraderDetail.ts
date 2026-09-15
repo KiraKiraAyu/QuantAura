@@ -630,6 +630,15 @@ export function useTraderDetail(traderId: Ref<string>) {
     },
   )
 
+  watch(
+    () => realtime.resyncCount,
+    (count) => {
+      if (count > 0) {
+        void refreshActivityFeed().catch(() => {})
+      }
+    },
+  )
+
   function updatePositions(newPositions: PositionPayload[]) {
     // Merge: update existing, add new
     const map = new Map(positions.value.map((p) => [p.id, p]))

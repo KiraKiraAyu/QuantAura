@@ -73,4 +73,13 @@ describe("Realtime Store", () => {
     store.clearPositions()
     expect(store.positions.length).toBe(0)
   })
+
+  it("handles resync_required event and increments resyncCount", () => {
+    const store = useRealtimeStore()
+    expect(store.resyncCount).toBe(0)
+
+    store.dispatchEventData(JSON.stringify({ type: "resync_required", missed_count: 5 }))
+    expect(store.resyncCount).toBe(1)
+    expect(store.lastEvent).toEqual({ type: "resync_required", missed_count: 5 })
+  })
 })
