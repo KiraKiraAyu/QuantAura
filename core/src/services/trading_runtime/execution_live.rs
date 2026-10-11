@@ -1,11 +1,44 @@
+use super::account_sim::AccountMetrics;
+use super::config_loaders::{leverage_for_symbol, margin_mode_for_config};
+use super::db_utils::apply_close_fill_to_open_positions;
+use super::events::emit_runtime_event_best_effort;
+use super::execution_live_limit::place_live_open_order_limit_first;
 use super::fixed_tpsl::ensure_fixed_tp_sl_orders;
-use super::service::*;
+use super::models::{
+    DecisionSignal, MarketState, PositionView, RuntimeConfig, SharedState, TraderRuntimeConfig,
+};
+use super::service::patch_json_payload;
 use crate::repositories::trading::records::{
     accounts::TraderAccountRecord,
     execution::InsertExecutionIntentRecord,
     history::InsertTraderDecisionRecord,
     orders::{InsertOrderFillRecord, InsertTraderOrderRecord, UpdateTraderOrderRecord},
     positions::UpsertPositionFromExchangeRecord,
+};
+use crate::{
+    clients::exchanges::{
+        ExchangeOrderType, ExchangeSide, ExchangeSymbolConstraints, LiveExchangeAdapter,
+        PlaceOrderRequest, PositionSide,
+    },
+    error::AppError,
+    runtime_events::{
+        EVENT_CANCEL_REPLACE_SUCCEEDED, EVENT_CANCEL_REPLACE_THROTTLED,
+        EVENT_CANCEL_REPLACE_USED_MARKET_FALLBACK, EVENT_LIVE_OPEN_SKIPPED_CONSTRAINTS,
+        EVENT_LIVE_OPEN_SKIPPED_MEDIUM_RISK, EVENT_LIVE_OPEN_USED_MARKET_FALLBACK,
+        EVENT_LIVE_ORDER_SUBMITTED, EVENT_LIVE_RISK_SNAPSHOT, EVENT_STALE_INTENT_RECONCILE_PENDING,
+        EVENT_STALE_INTENT_RECONCILE_TERMINAL,
+    },
+};
+use serde_json::{Value, json};
+use std::collections::{HashMap, HashSet};
+use tracing::warn;
+use uuid::Uuid;
+
+use crate::clients::binance::filters::normalize_order_quantity_by_constraints;
+use crate::clients::binance::retry::{
+    get_balances_with_retry, get_open_orders_with_retry, get_order_fills_with_retry,
+    get_order_with_retry, get_positions_with_retry, get_price_with_retry,
+    get_symbol_constraints_with_retry,
 };
 
 pub async fn sync_live_positions_and_balances(

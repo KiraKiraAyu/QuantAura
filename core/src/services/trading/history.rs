@@ -1,4 +1,20 @@
-use super::service::*;
+use super::events_util::app_error;
+use super::models::SharedState;
+use super::utils::resolve_trader_id;
+use crate::{
+    contracts::trading::{
+        history::{
+            DecisionListPayload, DecisionPayload, LatestDecisionsPayload, TradeListPayload,
+            TradePayload,
+        },
+        orders::{FillListPayload, FillPayload, OrderListPayload, OrderPayload},
+    },
+    error::{AppErrorKind, Result as AppResult},
+    repositories::trading::records::{
+        history::{TraderDecisionRecord, TraderTradeRecord},
+        orders::{OrderFillRecord, TraderOrderRecord},
+    },
+};
 
 pub async fn decisions(
     app: &SharedState,

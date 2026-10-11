@@ -1,5 +1,7 @@
-use super::service::*;
+use super::models::{SharedState, TraderRuntimeConfig};
+use crate::error::AppError;
 use crate::repositories::trading::records::history::InsertTraderTradeRecord;
+use uuid::Uuid;
 
 pub async fn insert_trade_record(
     state: &SharedState,

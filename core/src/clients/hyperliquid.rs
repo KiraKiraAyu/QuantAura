@@ -1,10 +1,7 @@
 use async_trait::async_trait;
-use k256::ecdsa::SigningKey;
-use reqwest::{Client, Method, StatusCode};
-use serde::{Deserialize, Serialize};
+use reqwest::{Client, Method};
+use serde::Serialize;
 use serde_json::{Map, Value, json};
-use sha3::{Digest, Keccak256};
-use uuid::Uuid;
 
 use crate::{
     clients::{
@@ -12,13 +9,26 @@ use crate::{
             CancelOrderResponse, ExchangeBalance, ExchangeCredentials, ExchangeMarginMode,
             ExchangeOpenOrder, ExchangeOrderDetail, ExchangeOrderType, ExchangePosition,
             ExchangeSide, ExchangeSymbolConstraints, ExchangeTradeFill, ExchangeUserStreamSession,
-            LiveExchangeAdapter, PlaceOrderRequest, PlaceOrderResponse, PositionSide, TimeInForce,
+            LiveExchangeAdapter, PlaceOrderRequest, PlaceOrderResponse, TimeInForce,
         },
-        outbound_http::{OutboundRequestLog, OutboundResponse, send_text},
+        outbound_http::{OutboundRequestLog, send_text},
     },
     error::AppError,
 };
 
+use crate::clients::hyperliquid::support::{
+    HyperliquidAction, HyperliquidAsset, HyperliquidCancelAction, HyperliquidExchangeRequest,
+    HyperliquidLimitType, HyperliquidOrderAction, HyperliquidOrderWireType,
+    ensure_hyperliquid_status_ok, format_hyperliquid_price, format_hyperliquid_size,
+    hyperliquid_cloid, hyperliquid_fill, hyperliquid_open_order, hyperliquid_order_status_detail,
+    hyperliquid_price_tick, internal_symbol, sign_l1_action,
+};
+use crate::clients::hyperliquid::support::{
+    exchange_side_label, order_type_label, position_side_label,
+};
+use crate::clients::hyperliquid::support::{
+    hyperliquid_coin, normalize_address, now_millis, parse_f64, parse_json_response,
+};
 const HYPERLIQUID_MIN_NOTIONAL_USDC: f64 = 10.0;
 const HYPERLIQUID_MAX_QTY_UNKNOWN: f64 = 0.0;
 
@@ -540,5 +550,3 @@ impl LiveExchangeAdapter for HyperliquidAdapter {
 }
 
 mod support;
-
-use support::*;

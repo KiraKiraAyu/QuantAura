@@ -1,4 +1,7 @@
-use super::service::*;
+use super::events_util::now_ts;
+use super::models::SharedState;
+use super::utils::resolve_trader_id;
+use crate::{contracts::trading::history::TraderStatisticsPayload, error::Result as AppResult};
 
 pub async fn statistics(
     app: &SharedState,

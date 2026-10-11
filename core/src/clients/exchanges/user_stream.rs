@@ -9,7 +9,7 @@ use tokio::{
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::warn;
 
-use crate::clients::binance::{
+use crate::clients::binance::ws::{
     BinanceAccountUpdateEvent, BinanceOrderTradeUpdateEvent, BinanceUserStreamEvent,
     parse_binance_user_stream_event,
 };

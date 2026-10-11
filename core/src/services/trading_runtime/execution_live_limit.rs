@@ -1,4 +1,14 @@
-use super::service::*;
+use super::execution_live::normalize_order_status;
+use crate::{
+    clients::exchanges::{
+        ExchangeMarginMode, ExchangeOrderType, ExchangeSide, ExchangeSymbolConstraints,
+        LiveExchangeAdapter, PlaceOrderRequest, PositionSide, TimeInForce,
+    },
+    error::AppError,
+};
+use tracing::warn;
+
+use crate::clients::binance::filters::normalize_order_price_by_constraints;
 
 pub async fn place_live_open_order_limit_first(
     adapter: &dyn LiveExchangeAdapter,

@@ -1,12 +1,14 @@
-use std::sync::{Arc, RwLock};
-
 use crate::{
     contracts::trading::traders::TraderPayload,
     error::{AppError, Result as AppResult},
     repositories::trading::records::traders::TraderRecord,
+    state::{RuntimeEngineManager, RuntimeEngineState},
+};
+use std::sync::{Arc, RwLock};
+
+use crate::{
     repositories::{ExchangeRepo, trading::TradingRepo},
     services::llm::LlmService,
-    state::{RuntimeEngineManager, RuntimeEngineState},
 };
 
 #[derive(Debug, Clone)]

@@ -1,5 +1,18 @@
-use super::*;
+use k256::ecdsa::SigningKey;
+use reqwest::StatusCode;
+use serde::Deserialize;
+use serde::Serialize;
+use serde_json::Value;
+use sha3::Digest;
+use sha3::Keccak256;
+use uuid::Uuid;
 
+use crate::clients::exchanges::types::{
+    ExchangeOpenOrder, ExchangeOrderDetail, ExchangeOrderType, ExchangeSide, ExchangeTradeFill,
+    PositionSide,
+};
+use crate::clients::outbound_http::OutboundResponse;
+use crate::error::AppError;
 #[derive(Debug, Clone)]
 pub(super) struct HyperliquidAsset {
     pub(super) index: usize,
@@ -558,6 +571,7 @@ pub(super) fn parse_f64(v: &str) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn hyperliquid_coin_normalizes_internal_symbols() {

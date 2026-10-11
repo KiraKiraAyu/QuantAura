@@ -1,4 +1,6 @@
-use super::service::*;
+use super::events_util::app_error;
+use super::models::SharedState;
+use crate::{error::AppErrorKind, repositories::trading::records::traders::TraderRecord};
 
 pub async fn get_trader_by_owner(
     app: &SharedState,

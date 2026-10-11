@@ -1,10 +1,14 @@
 use crate::clients::exchanges::{
-    ExchangeConditionalOrderType, ExchangeOpenOrder, ExchangePosition, ExchangeSide,
-    ExchangeSymbolConstraints, LiveExchangeAdapter, PlaceConditionalOrderRequest, PositionSide,
+    ExchangeConditionalOrderType, ExchangeOpenOrder, ExchangePosition, PlaceConditionalOrderRequest,
 };
-use crate::error::AppError;
 use crate::services::trading_runtime::{
     config_loaders::margin_mode_for_config, models::TraderRuntimeConfig,
+};
+use crate::{
+    clients::exchanges::{
+        ExchangeSide, ExchangeSymbolConstraints, LiveExchangeAdapter, PositionSide,
+    },
+    error::AppError,
 };
 use tracing::warn;
 

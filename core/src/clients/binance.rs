@@ -1,9 +1,8 @@
-mod filters;
-mod rest;
-mod retry;
-mod ws;
+pub mod filters;
+pub mod rest;
+pub mod retry;
+pub mod ws;
 
-pub use filters::*;
+// 只重导出对外的入口类型；其余符号请按真实模块路径引用
+// （clients::binance::retry::xxx / filters::xxx / ws::xxx）。
 pub use rest::BinanceFuturesAdapter;
-pub use retry::*;
-pub use ws::*;

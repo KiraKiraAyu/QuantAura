@@ -1,4 +1,27 @@
-use super::service::*;
+use super::events_util::{
+    app_error, count_runtime_events, now_ts, runtime_metric_rates_payload,
+    runtime_metric_totals_payload,
+};
+use super::models::SharedState;
+use super::utils::resolve_trader_id;
+use crate::{
+    contracts::trading::runtime_observability::{
+        RiskLevelCountPayload, RuntimeEventPayload, RuntimeEventTypePayload,
+        RuntimeEventTypesPayload, RuntimeEventsFilterPayload, RuntimeEventsPayload,
+        RuntimeMetricsPayload, RuntimeMetricsSeriesBucketPayload, RuntimeMetricsSeriesPayload,
+    },
+    error::{AppErrorKind, Result as AppResult},
+    repositories::trading::records::runtime_observability::RuntimeEventRecord,
+    runtime_events::{
+        EVENT_CANCEL_REPLACE_SUCCEEDED, EVENT_CANCEL_REPLACE_THROTTLED,
+        EVENT_CANCEL_REPLACE_USED_MARKET_FALLBACK, EVENT_LIVE_OPEN_SKIPPED_MEDIUM_RISK,
+        EVENT_LIVE_OPEN_USED_MARKET_FALLBACK, EVENT_LIVE_ORDER_SUBMITTED, EVENT_LIVE_RISK_SNAPSHOT,
+        EVENT_STALE_INTENT_RECONCILE_PENDING, EVENT_STALE_INTENT_RECONCILE_TERMINAL,
+        canonical_runtime_event_types,
+    },
+};
+use serde_json::Value;
+use std::collections::HashMap;
 
 pub async fn runtime_events(
     app: &SharedState,

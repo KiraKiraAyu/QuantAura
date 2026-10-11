@@ -1,9 +1,22 @@
+use super::account_sim::AccountMetrics;
 use super::data_context::load_trader_data_context;
+use super::events::emit_runtime_event_best_effort;
+use super::models::{
+    DecisionSignal, DecisionTiming, MarketState, PositionView, SharedState, TraderRuntimeConfig,
+};
 use super::prompt_assemble::{build_system_prompt, build_trading_prompt};
 use super::prompt_data::TimelineEntryView;
-use super::service::*;
 use crate::clients::market_data::MarketKline;
 use crate::repositories::trading::records::history::InsertTraderDecisionRecord;
+use crate::{
+    error::AppError,
+    runtime_events::{EVENT_AI_FALLBACK, EVENT_MARKET_DATA_UNAVAILABLE, EVENT_RISK_GUARD_ACTIVE},
+    services::llm::LlmMessage,
+};
+use serde_json::json;
+use std::collections::HashMap;
+use tracing::{info, warn};
+use uuid::Uuid;
 
 type CachedDecision = (String, f64, String);
 type DecisionCache = std::sync::Mutex<HashMap<String, CachedDecision>>;

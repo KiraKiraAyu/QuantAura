@@ -1,8 +1,11 @@
-use super::service::*;
+use super::models::{SharedState, TraderRuntimeConfig};
+use crate::error::AppError;
 use crate::{
     contracts::trading::runtime_observability::RuntimeEventPayload,
     repositories::trading::records::runtime_observability::InsertRuntimeEventRecord,
 };
+use tracing::warn;
+use uuid::Uuid;
 
 pub async fn emit_runtime_event(
     state: &SharedState,

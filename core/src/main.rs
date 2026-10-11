@@ -1,12 +1,13 @@
-use quantaura::*;
+#![cfg_attr(not(test), forbid(dead_code))]
+use quantaura::{
+    routes::build_app, services::trading_runtime::service::TradingRuntimeService, state::AppState,
+};
 
 use std::time::Duration;
 
 use tokio::net::TcpListener;
 use tracing::{error, info, warn};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-
-use crate::services::trading_runtime::service::TradingRuntimeService;
 
 /// Upper bound for the HTTP graceful drain.
 ///
@@ -17,7 +18,7 @@ const SHUTDOWN_DRAIN_TIMEOUT_SECS: u64 = 15;
 
 #[tokio::main]
 async fn main() {
-    let state = state::AppState::new().await;
+    let state = AppState::new().await;
     let config = state.config.clone();
     init_tracing(&config.logging.level);
 
@@ -36,7 +37,7 @@ async fn main() {
         }
     }
 
-    let app = routes::build_app(state, config.server.request_timeout_secs);
+    let app = build_app(state, config.server.request_timeout_secs);
 
     let addr = config.server_addr();
     let listener = match TcpListener::bind(addr).await {

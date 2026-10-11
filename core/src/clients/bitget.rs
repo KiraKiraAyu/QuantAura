@@ -1,7 +1,6 @@
 use async_trait::async_trait;
-use base64::{Engine as _, engine::general_purpose};
-use hmac::{Hmac, Mac};
-use reqwest::{Client, Method, StatusCode};
+use hmac::Hmac;
+use reqwest::{Client, Method};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use sha2::Sha256;
@@ -12,14 +11,25 @@ use crate::{
         exchanges::{
             CancelOrderResponse, ExchangeBalance, ExchangeCredentials, ExchangeMarginMode,
             ExchangeOpenOrder, ExchangeOrderDetail, ExchangeOrderType, ExchangePosition,
-            ExchangeSide, ExchangeSymbolConstraints, ExchangeTradeFill, ExchangeUserStreamSession,
-            LiveExchangeAdapter, PlaceOrderRequest, PlaceOrderResponse, PositionSide, TimeInForce,
+            ExchangeSymbolConstraints, ExchangeTradeFill, ExchangeUserStreamSession,
+            LiveExchangeAdapter, PlaceOrderRequest, PlaceOrderResponse,
         },
-        outbound_http::{OutboundRequestLog, OutboundResponse, send_text},
+        outbound_http::{OutboundRequestLog, send_text},
     },
     error::AppError,
 };
 
+use crate::clients::bitget::support::{
+    BitgetAccountRow, BitgetCancelAck, BitgetContractRow, BitgetFillPage, BitgetOrderAck,
+    BitgetOrderPage, BitgetOrderRow, BitgetPositionMode, BitgetPositionRow, BitgetTickerRow,
+    bitget_ack_order_id, bitget_force, bitget_margin_mode, bitget_open_order, bitget_order_detail,
+    bitget_order_type, bitget_position_mode, bitget_position_side_label, bitget_side,
+    bitget_symbol, bitget_trade_side, decimal_step, exchange_side_label, order_type_label,
+    parse_bitget_response, position_side_label, request_path, sign_bitget, validate_order_side,
+};
+use crate::clients::bitget::support::{
+    format_decimal, inferred_position_side_for_order, now_millis, parse_f64,
+};
 type HmacSha256 = Hmac<Sha256>;
 
 const PRODUCT_TYPE: &str = "USDT-FUTURES";
@@ -543,5 +553,3 @@ impl LiveExchangeAdapter for BitgetFuturesAdapter {
 }
 
 mod support;
-
-use support::*;

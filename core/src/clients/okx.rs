@@ -1,10 +1,9 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
-use base64::{Engine as _, engine::general_purpose};
 use chrono::{SecondsFormat, Utc};
-use hmac::{Hmac, Mac};
-use reqwest::{Client, Method, StatusCode};
+use hmac::Hmac;
+use reqwest::{Client, Method};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use sha2::Sha256;
@@ -15,14 +14,28 @@ use crate::{
         exchanges::{
             CancelOrderResponse, ExchangeBalance, ExchangeCredentials, ExchangeMarginMode,
             ExchangeOpenOrder, ExchangeOrderDetail, ExchangeOrderType, ExchangePosition,
-            ExchangeSide, ExchangeSymbolConstraints, ExchangeTradeFill, ExchangeUserStreamSession,
-            LiveExchangeAdapter, PlaceOrderRequest, PlaceOrderResponse, PositionSide, TimeInForce,
+            ExchangeSymbolConstraints, ExchangeTradeFill, ExchangeUserStreamSession,
+            LiveExchangeAdapter, PlaceOrderRequest, PlaceOrderResponse, PositionSide,
         },
-        outbound_http::{OutboundRequestLog, OutboundResponse, send_text},
+        outbound_http::{OutboundRequestLog, send_text},
     },
     error::AppError,
 };
 
+use crate::clients::okx::support::{
+    OkxAccountConfig, OkxBalanceRoot, OkxFillRow, OkxInstrument, OkxOrderAck, OkxOrderRow,
+    OkxPositionMode, OkxPositionRow, OkxTicker, OkxTimePayload, ensure_okx_item_success,
+    first_present, okx_contract_size, okx_instrument_from_map, okx_max_qty, okx_open_order,
+    okx_order_detail, okx_order_size_contracts, okx_order_type, okx_pos_side, okx_position_mode,
+    okx_position_side_label, okx_side, okx_td_mode, parse_okx_response, parse_optional_f64,
+    sign_okx,
+};
+use crate::clients::okx::support::{
+    exchange_side_label, internal_symbol, order_type_label, position_side_label, request_path,
+};
+use crate::clients::okx::support::{
+    format_decimal, inferred_position_side_for_order, now_millis, okx_inst_id, parse_f64,
+};
 type HmacSha256 = Hmac<Sha256>;
 
 #[derive(Debug, Clone)]
@@ -576,5 +589,3 @@ impl LiveExchangeAdapter for OkxFuturesAdapter {
 }
 
 mod support;
-
-use support::*;
